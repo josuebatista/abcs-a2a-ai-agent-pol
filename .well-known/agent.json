@@ -1,0 +1,176 @@
+{
+  "id": "a2a-ai-agent-poc",
+  "name": "A2A AI Agent POC",
+  "description": "Agent2Agent Protocol compliant AI agent providing text processing capabilities",
+  "version": "0.1.0",
+  "provider": {
+    "name": "ABCS A2A Agent POC",
+    "url": "https://github.com/your-org/abcs-a2a-ai-agent-pol"
+  },
+  "capabilities": [
+    {
+      "id": "text.summarize",
+      "name": "Text Summarization",
+      "description": "Summarizes long text content into concise summaries",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to summarize",
+            "minLength": 10,
+            "maxLength": 10000
+          },
+          "max_length": {
+            "type": "integer",
+            "description": "Maximum length of summary in words",
+            "default": 100,
+            "minimum": 10,
+            "maximum": 500
+          }
+        },
+        "required": ["text"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "The generated summary"
+          },
+          "original_length": {
+            "type": "integer",
+            "description": "Length of original text in characters"
+          },
+          "summary_length": {
+            "type": "integer",
+            "description": "Length of summary in characters"
+          },
+          "compression_ratio": {
+            "type": "number",
+            "description": "Ratio of summary length to original length"
+          }
+        }
+      }
+    },
+    {
+      "id": "text.analyze_sentiment",
+      "name": "Sentiment Analysis",
+      "description": "Analyzes the sentiment of text content",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to analyze for sentiment",
+            "minLength": 1,
+            "maxLength": 5000
+          }
+        },
+        "required": ["text"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "sentiment": {
+            "type": "string",
+            "enum": ["positive", "negative", "neutral"],
+            "description": "Overall sentiment classification"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Confidence score for the sentiment prediction"
+          },
+          "scores": {
+            "type": "object",
+            "properties": {
+              "positive": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "negative": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "neutral": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "data.extract",
+      "name": "Data Extraction",
+      "description": "Extracts structured data from unstructured text",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to extract data from",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "schema": {
+            "type": "object",
+            "description": "Optional schema to guide extraction",
+            "default": {}
+          }
+        },
+        "required": ["text"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "extracted_data": {
+            "type": "object",
+            "description": "The extracted structured data"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Overall confidence in the extraction"
+          }
+        }
+      }
+    }
+  ],
+  "endpoints": {
+    "rpc": "/rpc",
+    "status": "/tasks/{task_id}",
+    "stream": "/tasks/{task_id}/stream"
+  },
+  "authentication": {
+    "types": ["bearer_token"],
+    "required": false
+  },
+  "protocols": {
+    "jsonrpc": "2.0",
+    "sse": true
+  },
+  "status_codes": {
+    "pending": "Task has been queued for processing",
+    "running": "Task is currently being processed",
+    "completed": "Task has been completed successfully",
+    "failed": "Task processing failed"
+  },
+  "contact": {
+    "support_url": "https://github.com/your-org/abcs-a2a-ai-agent-pol/issues",
+    "documentation_url": "https://github.com/your-org/abcs-a2a-ai-agent-pol/blob/main/README.md"
+  },
+  "metadata": {
+    "created": "2025-09-21T23:00:00Z",
+    "updated": "2025-09-21T23:00:00Z",
+    "tags": ["ai", "nlp", "text-processing", "a2a", "google-cloud"],
+    "categories": ["artificial-intelligence", "text-analysis"]
+  }
+}
