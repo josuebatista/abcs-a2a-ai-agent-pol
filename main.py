@@ -65,7 +65,7 @@ async def handle_rpc_request(request: TaskRequest, background_tasks: BackgroundT
 
     # Initialize task
     tasks[task_id] = {
-        "id": task_id,
+        "task_id": task_id,
         "status": "pending",
         "method": request.method,
         "params": request.params,
