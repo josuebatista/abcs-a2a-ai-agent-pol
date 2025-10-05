@@ -4,194 +4,107 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AI/ML Solution Architect's proof-of-concept project to build a fully compliant Agent2Agent (A2A) protocol secondary agent in Google Cloud Platform. The agent implements Google's A2A protocol specification (introduced April 2025) and can be discovered and orchestrated by primary agents like ServiceNow.
-
-## Project Requirements
-
-**Create a Cloud Run application that:**
-- Implements Google's A2A protocol specification using their Agent Development Kit (ADK) for Python
-- Exposes an agent card at `/.well-known/agent.json` with proper metadata
-- Provides at least 2-3 basic AI capabilities (e.g., text summarization, sentiment analysis, data extraction)
-- Uses JSON-RPC and Server-Sent Events (SSE) as required by A2A
-- Implements proper authentication (Bearer Token or OAuth)
-- Returns structured responses with artifacts as per A2A spec
-- Includes proper error handling and logging
-
-**Technical Stack:**
-- Python 3.9+ with Google's ADK
-- FastAPI or Flask for the web framework
-- Cloud Run for deployment
-- Cloud Build for CI/CD
-- Vertex AI for the actual AI capabilities
-- Proper containerization with Dockerfile
-
-## Key Deliverables
-
-1. **Complete project structure** with all necessary files
-2. **Dockerfile** optimized for Cloud Run
-3. **requirements.txt** with all dependencies including Google's ADK
-4. **Main application code** implementing A2A protocol
-5. **Agent card template** (`agent.json`) with proper capability declarations
-6. **Cloud Run deployment configuration** (YAML or gcloud commands)
-7. **Testing scripts** to validate A2A compliance
-8. **Documentation** explaining the architecture and how to extend capabilities
-
-## A2A Protocol Implementation Requirements
-
-The agent must:
-- Register capabilities in the agent card with proper skill definitions
-- Handle task requests via JSON-RPC format
-- Implement the A2A handshake and discovery mechanism
-- Use proper status reporting (pending, running, completed, failed)
-- Return artifacts in the expected A2A format
-- Support agent-to-agent authentication patterns
-
-## Example Use Case
-
-The secondary agent should be able to:
-- Receive a text summarization request from a primary agent (like ServiceNow)
-- Process the request using Vertex AI
-- Return the summarized text as an artifact
-- Handle multiple concurrent requests
-- Provide proper status updates during processing
+An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Built as a proof-of-concept for GCP Cloud Run deployment with FastAPI.
 
 ## Development Commands
 
-Since this is a new project, common commands will include:
-
 ```bash
-# Install dependencies
+# Local development
 pip install -r requirements.txt
+python main.py  # Runs on http://localhost:8080
 
-# Run locally for development
-python main.py
-
-# Build Docker image
+# Docker
 docker build -t a2a-agent .
+docker run -p 8080:8080 a2a-agent
 
-# Deploy to Cloud Run
-gcloud run deploy a2a-agent --source .
+# Cloud Run deployment
+gcloud run deploy a2a-agent --source . --platform managed --region us-central1
 
-# Run tests
-python -m pytest tests/
-
-# Validate A2A compliance
-python scripts/test_a2a_compliance.py
-```
-
-## Architecture Notes
-
-- The application must expose the agent card at `/.well-known/agent.json` for discovery
-- JSON-RPC endpoints handle task requests from primary agents
-- Server-Sent Events (SSE) provide real-time status updates
-- Vertex AI integration provides the actual AI capabilities
-- Authentication layer handles Bearer Token or OAuth validation
-- Cloud Run provides scalable, serverless deployment
-
-## Deployment Considerations
-
-- Requires proper IAM roles and service account configurations
-- Must include security considerations for production deployment
-- Should handle multiple concurrent requests efficiently
-- Needs proper error handling and logging for production monitoring
-- Agent discovery mechanism must be accessible to primary agents like ServiceNow
-
-## Project Context
-
-The user has a GCP paid account with billing enabled and experience deploying to Cloud Run, with necessary permissions and tooling already set up. The focus should be on step-by-step deployment instructions and explaining how primary agents discover and interact with this secondary agent.
-
-## Current Development Status (Updated: 2025-09-21)
-
-### ✅ COMPLETED - Phase 1: Working A2A Agent (v0.2)
-
-**What's Working:**
-- ✅ Complete FastAPI application with A2A protocol compliance
-- ✅ All 3 AI capabilities implemented (mock implementations):
-  - Text summarization with compression metrics
-  - Sentiment analysis with confidence scores
-  - Data extraction from unstructured text
-- ✅ JSON-RPC 2.0 compliant endpoints
-- ✅ Server-Sent Events (SSE) for real-time updates
-- ✅ Agent card at `/.well-known/agent.json` for ServiceNow discovery
-- ✅ Comprehensive error handling and status management
-- ✅ Local testing completed - all endpoints verified working
-- ✅ Complete README.md with curl testing commands
-- ✅ Version control with tags: v0.1, v0.1.1, v0.2
-- ✅ Repository synced to: https://github.com/josuebatista/abcs-a2a-ai-agent-pol.git
-
-**Repository Structure:**
-```
-├── main.py              # FastAPI app with A2A protocol (WORKING)
-├── requirements.txt     # All dependencies specified
-├── Dockerfile          # Cloud Run optimized container
-├── .well-known/
-│   └── agent.json      # Agent discovery card (ServiceNow compatible)
-├── README.md           # Complete documentation & test commands
-└── CLAUDE.md           # This guidance file
-```
-
-**Testing Commands (All Verified Working):**
-```bash
-# Start application
-python main.py
-
-# Test all capabilities - see README.md for complete curl commands
+# Testing endpoints (see README.md for complete curl examples)
 curl -s http://localhost:8080/health | jq .
 curl -s http://localhost:8080/.well-known/agent.json | jq .
-# Full test suite documented in README.md
 ```
 
-### 🔄 NEXT STEPS - Phase 2 Options:
+## Architecture
 
-**Option A: Testing Infrastructure**
-- Add pytest test suite for automated testing
-- Create test scripts for CI/CD pipeline
-- Add integration tests for A2A protocol compliance
+**Core Application (main.py)**
+- Single FastAPI app implementing A2A protocol specification
+- In-memory task storage (`tasks: Dict[str, Dict]`) - replace with persistent storage for production
+- Background task processing using FastAPI's `BackgroundTasks`
+- Three capability handlers: `handle_text_summarization()`, `handle_sentiment_analysis()`, `handle_data_extraction()`
 
-**Option B: Real AI Integration (Recommended Next)**
-- Replace mock implementations with actual Vertex AI calls
-- Integrate Google Cloud AI Platform for:
-  - Real text summarization using PaLM/Gemini
-  - Actual sentiment analysis
-  - Proper data extraction with NER
-- Update agent card with real capability limits
+**A2A Protocol Flow**
+1. **Discovery**: Primary agents fetch `/.well-known/agent.json` (served via StaticFiles)
+2. **Task Submission**: JSON-RPC 2.0 POST to `/rpc` creates task with unique ID
+3. **Background Processing**: `process_task()` routes to capability handlers based on method
+4. **Status Updates**: Clients poll `/tasks/{task_id}` or stream via SSE `/tasks/{task_id}/stream`
+5. **Task States**: `pending` → `running` → `completed`/`failed`
 
-**Option C: Cloud Run Deployment**
-- Deploy to Cloud Run with proper IAM setup
-- Configure authentication (Bearer tokens)
-- Set up monitoring and logging
-- Test ServiceNow integration end-to-end
+**Key Components**
+- Lines 31-45: Pydantic models for JSON-RPC request/response
+- Lines 119-151: `process_task()` - background processor routing tasks to handlers
+- Lines 154-212: Mock capability implementations (replace with Vertex AI)
+- Line 28: Static file mount for `.well-known/agent.json`
 
-### 🎯 IMMEDIATE NEXT SESSION GOALS:
+**Capabilities Defined**
+- `text.summarize`: Text summarization (mock: returns first 100 chars + metrics)
+- `text.analyze_sentiment`: Sentiment analysis (mock: returns hardcoded positive sentiment)
+- `data.extract`: Extract structured data (mock: returns static entity list)
 
-1. **Choose integration path**: Vertex AI (recommended) or deployment first
-2. **For Vertex AI Integration:**
-   - Set up Google Cloud AI Platform credentials
-   - Replace mock functions in main.py with real AI calls
-   - Update capability schemas in agent.json with real limits
-   - Test with actual AI processing
+## Agent Discovery Card
 
-3. **For Cloud Run Deployment:**
-   - Build and deploy container
-   - Configure proper authentication
-   - Test from ServiceNow or external primary agent
+`.well-known/agent.json` declares:
+- 3 capabilities with complete JSON schemas (input/output)
+- RPC endpoints following A2A specification
+- Status codes (pending/running/completed/failed)
+- Authentication config (currently disabled for development)
+- Metadata for ServiceNow discovery
 
-### 🔧 TECHNICAL NOTES FOR CONTINUATION:
+## Current Status
 
-**Current Mock Implementation Locations:**
-- `handle_text_summarization()` in main.py:180
-- `handle_sentiment_analysis()` in main.py:196
-- `handle_data_extraction()` in main.py:210
+**Working (v0.2)**
+- ✅ Complete A2A protocol implementation
+- ✅ All endpoints tested and functional locally
+- ✅ JSON-RPC 2.0 + SSE working
+- ✅ Mock AI capabilities return proper structure
 
-**Key Files to Modify for Real AI:**
-- `main.py`: Replace mock functions with Vertex AI calls
-- `requirements.txt`: Add google-cloud-aiplatform specific versions
-- `.well-known/agent.json`: Update with real processing limits
+**Next Phase Options**
+- **Vertex AI Integration**: Replace mock handlers (lines 154-212) with real Google Cloud AI calls
+- **Cloud Run Deployment**: Deploy containerized app with authentication
+- **Testing**: Add pytest suite for A2A compliance validation
 
-**Known Working Endpoints (Ready for ServiceNow):**
-- Agent Discovery: `GET /.well-known/agent.json`
-- Task Submission: `POST /rpc` (JSON-RPC 2.0)
-- Status Check: `GET /tasks/{task_id}`
-- Real-time Updates: `GET /tasks/{task_id}/stream` (SSE)
+## Modifying AI Capabilities
 
-The agent is **fully functional** and **ServiceNow-ready** with mock capabilities. Next phase is to make it production-ready with real AI or deploy as-is for initial integration testing.
+To replace mock implementations with real AI:
+
+1. Update capability handlers in `main.py`:
+   - `handle_text_summarization()` at line 154
+   - `handle_sentiment_analysis()` at line 173
+   - `handle_data_extraction()` at line 193
+
+2. Add Vertex AI dependencies to `requirements.txt`:
+   ```
+   google-cloud-aiplatform==1.38.1  # Already present
+   ```
+
+3. Update `.well-known/agent.json` with real processing limits (max_length, timeout)
+
+4. Add GCP credentials handling for Vertex AI authentication
+
+## Deployment Notes
+
+- User has GCP account with Cloud Run access and billing enabled
+- Dockerfile optimized for Cloud Run (non-root user, healthcheck, slim base)
+- Port 8080 hardcoded for Cloud Run compatibility
+- Authentication currently disabled (`"required": false` in agent.json) - enable for production
+- IAM roles needed: Cloud Run Invoker, Vertex AI User (for real AI integration)
+
+## A2A Protocol Requirements
+
+Must maintain:
+- Agent card at `/.well-known/agent.json` with proper capability schemas
+- JSON-RPC 2.0 format: `{"method": "text.summarize", "params": {...}, "id": "..."}`
+- Status reporting: pending → running → completed/failed
+- Artifact returns in result object
+- SSE support for real-time updates
+- ServiceNow-compatible discovery mechanism

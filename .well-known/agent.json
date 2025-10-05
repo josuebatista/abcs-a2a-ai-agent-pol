@@ -1,8 +1,8 @@
 {
   "id": "a2a-ai-agent-poc",
   "name": "A2A AI Agent POC",
-  "description": "Agent2Agent Protocol compliant AI agent providing text processing capabilities",
-  "version": "0.1.0",
+  "description": "Agent2Agent Protocol compliant AI agent with real Vertex AI and Natural Language API capabilities for text processing",
+  "version": "0.3.0",
   "provider": {
     "name": "ABCS A2A Agent POC",
     "url": "https://github.com/your-org/abcs-a2a-ai-agent-pol"
@@ -169,7 +169,7 @@
   },
   "metadata": {
     "created": "2025-09-21T23:00:00Z",
-    "updated": "2025-09-21T23:00:00Z",
+    "updated": "2025-10-05T00:00:00Z",
     "tags": ["ai", "nlp", "text-processing", "a2a", "google-cloud"],
     "categories": ["artificial-intelligence", "text-analysis"]
   }
