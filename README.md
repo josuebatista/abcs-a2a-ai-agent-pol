@@ -5,61 +5,30 @@ Agent2Agent Protocol compliant AI agent for Google Cloud Platform, designed to b
 ## Overview
 
 This proof-of-concept implements Google's A2A protocol specification with:
-- **3 AI Capabilities**: Text summarization (Gemini), sentiment analysis (Natural Language API), and data extraction (Entity Recognition)
+- **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction - all powered by Gemini API
 - **JSON-RPC 2.0**: Standard protocol for task requests
 - **Server-Sent Events**: Real-time status updates
 - **Agent Discovery**: Standard `.well-known/agent.json` endpoint
 - **Cloud Run Ready**: Optimized for GCP deployment
-- **Real AI Integration**: Uses Vertex AI and Google Cloud Natural Language API
+- **Real AI Integration**: Uses Google Gemini API for all AI capabilities
 
 ## Prerequisites
 
 - Python 3.9+
-- Google Cloud Platform account with billing enabled
-- GCP Project with the following APIs enabled:
-  - Vertex AI API
-  - Cloud Natural Language API
-- Service account with permissions:
-  - Vertex AI User
-  - Cloud Natural Language API User
+- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
 
 ## Quick Start
 
-### 1. GCP Setup
+### 1. API Key Setup
 
-Enable required APIs:
-```bash
-gcloud services enable aiplatform.googleapis.com
-gcloud services enable language.googleapis.com
-```
-
-Set up authentication (choose one method):
-
-**Option A: Service Account Key (Local Development)**
-```bash
-gcloud iam service-accounts create a2a-agent-sa
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:a2a-agent-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/aiplatform.user"
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:a2a-agent-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/cloudlanguage.admin"
-gcloud iam service-accounts keys create key.json \
-  --iam-account=a2a-agent-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com
-export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/key.json"
-```
-
-**Option B: Application Default Credentials**
-```bash
-gcloud auth application-default login
-```
+Get your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
 
 ### 2. Local Development
 
 1. **Configure environment**:
    ```bash
    cp .env.example .env
-   # Edit .env and set your GCP_PROJECT_ID
+   # Edit .env and set your GEMINI_API_KEY
    ```
 
 2. **Install dependencies**:
@@ -89,31 +58,31 @@ curl -s http://localhost:8080/health | jq .
 curl -s http://localhost:8080/.well-known/agent.json | jq .
 ```
 
-### 3. Test Text Summarization (Real Gemini API)
+### 3. Test Text Summarization (Gemini API)
 ```bash
 # Create task
-curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "text.summarize", "params": {"text": "This is a long text that needs to be summarized. It contains multiple sentences and provides detailed information about various topics. The goal is to create a concise summary that captures the main points without losing important details. This text processing capability will be very useful for A2A protocol compliance and ServiceNow integration."}, "id": "test-summary"}' | jq .
+curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "text.summarize", "params": {"text": "Jupiter is the fifth planet from the Sun and the largest in the Solar System. It is a gas giant with a mass one-thousandth that of the Sun, but two-and-a-half times that of all the other planets in the Solar System combined.", "max_length": 50}, "id": "test-summary"}' | jq .
 
 # Check result (wait 5 seconds for Gemini processing)
 sleep 5 && curl -s http://localhost:8080/tasks/test-summary | jq .
 ```
 
-### 4. Test Sentiment Analysis (Real Natural Language API)
+### 4. Test Sentiment Analysis (Gemini API)
 ```bash
 # Create task
-curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "text.analyze_sentiment", "params": {"text": "I am very excited about this A2A implementation! It looks great and will work perfectly with ServiceNow."}, "id": "test-sentiment"}' | jq .
+curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "text.analyze_sentiment", "params": {"text": "I am very happy with the new product. It is amazing"}, "id": "test-sentiment"}' | jq .
 
 # Check result
-sleep 3 && curl -s http://localhost:8080/tasks/test-sentiment | jq .
+sleep 5 && curl -s http://localhost:8080/tasks/test-sentiment | jq .
 ```
 
-### 5. Test Data Extraction (Real Entity Recognition)
+### 5. Test Data Extraction (Gemini API)
 ```bash
 # Create task
-curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "data.extract", "params": {"text": "Contact John Smith at john.smith@example.com, phone: 555-1234. Meeting scheduled for 2025-09-22 at Google Cloud offices."}, "id": "test-extract"}' | jq .
+curl -s -X POST http://localhost:8080/rpc -H "Content-Type: application/json" -d '{"method": "data.extract", "params": {"text": "John Doe, the CEO of Acme Inc., will be in New York on Monday, October 28, 2025 for the annual Acme conference. He can be reached at john.doe@acmeinc.com or at 555-123-4567."}, "id": "test-extract"}' | jq .
 
 # Check result
-sleep 3 && curl -s http://localhost:8080/tasks/test-extract | jq .
+sleep 5 && curl -s http://localhost:8080/tasks/test-extract | jq .
 ```
 
 ### 6. Test Error Handling
@@ -195,6 +164,7 @@ gcloud run deploy a2a-agent --source . --platform managed --region us-central1 -
 - ✅ **v0.1**: Initial project structure
 - ✅ **v0.2**: Working A2A agent with mock capabilities
 - ✅ **v0.3**: Real AI integration with Vertex AI and Natural Language API
+- ✅ **v0.4**: Migrated to Gemini API for all AI capabilities (simplified architecture)
 - 🔄 **Next**: Production Cloud Run deployment with authentication
 
 ## ServiceNow Integration
@@ -209,29 +179,32 @@ Once deployed to Cloud Run, ServiceNow can discover this agent by:
 
 - Authentication currently disabled for development (`"required": false` in agent.json)
 - Production deployment should enable Bearer token authentication
-- Service account credentials required for Vertex AI and Natural Language API access
-- Keep service account keys secure - never commit to version control
-- For Cloud Run deployment, use Cloud Run service accounts instead of keys
+- **IMPORTANT**: Never commit `.env` file with your actual `GEMINI_API_KEY` to version control
+- Store API keys securely using environment variables or secret management services
+- For Cloud Run deployment, use Secret Manager to store the Gemini API key
 
 ## AI Capabilities
 
+All three capabilities are powered by **Google Gemini API** (`gemini-pro-latest` model):
+
 ### Text Summarization
-- **Model**: Gemini 1.5 Flash
-- **Max Input**: 10,000 characters
+- **Model**: Gemini Pro (via Gemini API)
+- **Max Input**: Configurable (default: 100 words)
 - **Processing Time**: ~3-5 seconds
 - **Features**: Configurable summary length, compression metrics
 
 ### Sentiment Analysis
-- **API**: Google Cloud Natural Language API
+- **Model**: Gemini Pro (via Gemini API)
 - **Max Input**: 5,000 characters
-- **Processing Time**: ~1-3 seconds
-- **Output**: Sentiment label (positive/negative/neutral), confidence scores
+- **Processing Time**: ~3-5 seconds
+- **Output**: Sentiment label (positive/negative/neutral), confidence scores with detailed breakdown
 
 ### Data Extraction
-- **API**: Google Cloud Natural Language API (Entity Recognition)
+- **Model**: Gemini Pro (via Gemini API)
 - **Max Input**: 10,000 characters
-- **Processing Time**: ~1-3 seconds
+- **Processing Time**: ~3-5 seconds
 - **Entities**: Persons, locations, organizations, dates, events, phone numbers, emails
+- **Output**: Structured JSON with entity names and salience scores
 
 ## License
 

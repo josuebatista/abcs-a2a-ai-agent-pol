@@ -19,26 +19,25 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Google Cloud AI imports
-from google.cloud import aiplatform
-from google.cloud import language_v1
-import vertexai
-from vertexai.preview.generative_models import GenerativeModel
+# Gemini AI imports
+import google.generativeai as genai
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Vertex AI
-PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-project-id")
-LOCATION = os.getenv("GCP_LOCATION", "us-central1")
+# Initialize Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-try:
-    vertexai.init(project=PROJECT_ID, location=LOCATION)
-    logger.info(f"Vertex AI initialized for project: {PROJECT_ID}, location: {LOCATION}")
-except Exception as e:
-    logger.error(f"Failed to initialize Vertex AI: {str(e)}")
-    logger.warning("Application will start but AI capabilities may not work without proper GCP credentials")
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        logger.info("Gemini API initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini API: {str(e)}")
+        logger.warning("Application will start but AI capabilities may not work without proper API key")
+else:
+    logger.warning("GEMINI_API_KEY not set. AI capabilities will not work.")
 
 app = FastAPI(
     title="A2A AI Agent",
@@ -172,9 +171,9 @@ async def process_task(task_id: str):
         task["error"] = str(e)
         task["failed_at"] = datetime.utcnow().isoformat()
 
-# Capability handlers using Vertex AI
+# Capability handlers using Gemini API
 async def handle_text_summarization(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Text summarization using Natural Language API"""
+    """Text summarization using Gemini API"""
     text = params.get("text", "")
     max_length = params.get("max_length", 100)
 
@@ -185,19 +184,17 @@ async def handle_text_summarization(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be at least 10 characters long")
 
     try:
-        # Use a simple extractive summarization approach
-        # For a production system, use a dedicated summarization model
-        sentences = text.split('. ')
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-pro-latest')
 
-        # Calculate how many sentences to keep based on max_length
-        words_per_sentence = sum(len(s.split()) for s in sentences) / len(sentences) if sentences else 0
-        target_sentences = max(1, int(max_length / words_per_sentence)) if words_per_sentence > 0 else 1
-        target_sentences = min(target_sentences, len(sentences))
+        # Create prompt
+        prompt = f"""Summarize the following text in approximately {max_length} words or less:
 
-        # Take first N sentences as summary
-        summary = '. '.join(sentences[:target_sentences])
-        if not summary.endswith('.'):
-            summary += '.'
+{text}"""
+
+        # Generate summary
+        response = model.generate_content(prompt)
+        summary = response.text.strip()
 
         return {
             "summary": summary,
@@ -211,7 +208,7 @@ async def handle_text_summarization(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"Failed to generate summary: {str(e)}")
 
 async def handle_sentiment_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Sentiment analysis using Google Cloud Natural Language API"""
+    """Sentiment analysis using Gemini API"""
     text = params.get("text", "")
 
     if not text:
@@ -221,48 +218,41 @@ async def handle_sentiment_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be 5000 characters or less")
 
     try:
-        # Initialize Natural Language client
-        client = language_v1.LanguageServiceClient()
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-pro-latest')
 
-        # Prepare the document
-        document = language_v1.Document(
-            content=text,
-            type_=language_v1.Document.Type.PLAIN_TEXT
-        )
+        # Create prompt for structured sentiment analysis
+        prompt = f"""Analyze the sentiment of the following text and respond with ONLY a JSON object in this exact format:
+{{
+    "sentiment": "positive" or "negative" or "neutral",
+    "confidence": a number between 0 and 1,
+    "scores": {{
+        "positive": a number between 0 and 1,
+        "negative": a number between 0 and 1,
+        "neutral": a number between 0 and 1
+    }}
+}}
 
-        # Analyze sentiment
-        response = client.analyze_sentiment(document=document)
-        sentiment = response.document_sentiment
+Text: {text}"""
 
-        # Determine overall sentiment classification
-        if sentiment.score > 0.25:
-            sentiment_label = "positive"
-        elif sentiment.score < -0.25:
-            sentiment_label = "negative"
-        else:
-            sentiment_label = "neutral"
+        # Generate analysis
+        response = model.generate_content(prompt)
+        result_text = response.text.strip()
 
-        # Calculate score distribution (normalized)
-        positive_score = max(0, sentiment.score)
-        negative_score = max(0, -sentiment.score)
-        neutral_score = 1 - abs(sentiment.score)
+        # Clean up JSON response (remove markdown code blocks if present)
+        result_text = result_text.replace('```json', '').replace('```', '').strip()
 
-        return {
-            "sentiment": sentiment_label,
-            "confidence": round(sentiment.magnitude, 2),
-            "scores": {
-                "positive": round(positive_score, 2),
-                "negative": round(negative_score, 2),
-                "neutral": round(neutral_score, 2)
-            }
-        }
+        # Parse JSON response
+        result = json.loads(result_text)
+
+        return result
 
     except Exception as e:
         logger.error(f"Sentiment analysis failed: {str(e)}")
         raise ValueError(f"Failed to analyze sentiment: {str(e)}")
 
 async def handle_data_extraction(params: Dict[str, Any]) -> Dict[str, Any]:
-    """Data extraction using Google Cloud Natural Language API entity recognition"""
+    """Data extraction using Gemini API entity recognition"""
     text = params.get("text", "")
     schema = params.get("schema", {})
 
@@ -273,65 +263,54 @@ async def handle_data_extraction(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be 10000 characters or less")
 
     try:
-        # Initialize Natural Language client
-        client = language_v1.LanguageServiceClient()
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-pro-latest')
 
-        # Prepare the document
-        document = language_v1.Document(
-            content=text,
-            type_=language_v1.Document.Type.PLAIN_TEXT
-        )
+        # Create prompt for entity extraction
+        prompt = f"""Extract the entities from the following text.
+Recognize the following entity types:
+- Persons
+- Locations
+- Organizations
+- Dates
+- Events
+- Phone numbers
+- Emails
 
-        # Analyze entities
-        response = client.analyze_entities(document=document)
+Return the result as a JSON object with keys matching the entity types above (lowercase, plural).
+Each entity should have "name" and "salience" (a number between 0 and 1 indicating importance).
 
-        # Organize entities by type
-        entities_by_type = {
-            "persons": [],
-            "locations": [],
-            "organizations": [],
-            "events": [],
-            "dates": [],
-            "phone_numbers": [],
-            "emails": [],
-            "other": []
-        }
+Example format:
+{{
+    "persons": [{{"name": "John Doe", "salience": 0.8}}],
+    "locations": [{{"name": "New York", "salience": 0.6}}],
+    "organizations": [{{"name": "Acme Inc.", "salience": 0.7}}]
+}}
 
-        total_salience = 0
-        for entity in response.entities:
-            entity_data = {
-                "name": entity.name,
-                "type": language_v1.Entity.Type(entity.type_).name,
-                "salience": round(entity.salience, 3)
-            }
+Text: {text}"""
 
-            total_salience += entity.salience
+        # Generate entity extraction
+        response = model.generate_content(prompt)
+        result_text = response.text.strip()
 
-            # Categorize entities
-            entity_type = language_v1.Entity.Type(entity.type_).name
-            if entity_type == "PERSON":
-                entities_by_type["persons"].append(entity_data)
-            elif entity_type == "LOCATION":
-                entities_by_type["locations"].append(entity_data)
-            elif entity_type == "ORGANIZATION":
-                entities_by_type["organizations"].append(entity_data)
-            elif entity_type == "EVENT":
-                entities_by_type["events"].append(entity_data)
-            elif entity_type == "DATE":
-                entities_by_type["dates"].append(entity_data)
-            elif entity_type == "PHONE_NUMBER":
-                entities_by_type["phone_numbers"].append(entity_data)
-            elif entity_type == "ADDRESS":
-                entities_by_type["emails"].append(entity_data)
-            else:
-                entities_by_type["other"].append(entity_data)
+        # Clean up JSON response (remove markdown code blocks if present)
+        result_text = result_text.replace('```json', '').replace('```', '').strip()
 
-        # Calculate average confidence
-        entity_count = len(response.entities)
+        # Parse JSON response
+        extracted_data = json.loads(result_text)
+
+        # Calculate entity count and average confidence
+        entity_count = 0
+        total_salience = 0.0
+
+        for entity_type, entities in extracted_data.items():
+            if isinstance(entities, list):
+                entity_count += len(entities)
+                for entity in entities:
+                    if isinstance(entity, dict) and 'salience' in entity:
+                        total_salience += entity.get('salience', 0)
+
         avg_confidence = round(total_salience / entity_count, 2) if entity_count > 0 else 0.0
-
-        # Remove empty categories
-        extracted_data = {k: v for k, v in entities_by_type.items() if v}
 
         return {
             "extracted_data": extracted_data,
