@@ -41,15 +41,15 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 5. **Task States**: `pending` → `running` → `completed`/`failed`
 
 **Key Components**
-- Lines 31-45: Pydantic models for JSON-RPC request/response
-- Lines 119-151: `process_task()` - background processor routing tasks to handlers
-- Lines 154-212: Mock capability implementations (replace with Vertex AI)
-- Line 28: Static file mount for `.well-known/agent.json`
+- Lines 56-66: Pydantic models for JSON-RPC request/response
+- Lines 141-173: `process_task()` - background processor routing tasks to handlers
+- Lines 175-323: Real AI capability handlers using Gemini API
+- Line 50: Static file mount for `.well-known/agent.json`
 
-**Capabilities Defined**
-- `text.summarize`: Text summarization (mock: returns first 100 chars + metrics)
-- `text.analyze_sentiment`: Sentiment analysis (mock: returns hardcoded positive sentiment)
-- `data.extract`: Extract structured data (mock: returns static entity list)
+**Capabilities Defined (All powered by Gemini API)**
+- `text.summarize`: Text summarization using Gemini Pro
+- `text.analyze_sentiment`: Sentiment analysis with structured JSON output from Gemini
+- `data.extract`: Entity extraction with salience scoring via Gemini
 
 ## Agent Discovery Card
 
@@ -62,34 +62,43 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 
 ## Current Status
 
-**Working (v0.2)**
+**Working (v0.4)**
 - ✅ Complete A2A protocol implementation
 - ✅ All endpoints tested and functional locally
 - ✅ JSON-RPC 2.0 + SSE working
-- ✅ Mock AI capabilities return proper structure
+- ✅ Real AI capabilities using Gemini API
+- ✅ All three handlers tested with live Gemini API calls
+- ✅ Simplified authentication (single API key)
+
+**Version History**
+- v0.1: Initial project structure
+- v0.2: Working A2A agent with mock capabilities
+- v0.3: Real AI integration with Vertex AI and Natural Language API
+- v0.4: Migrated to Gemini API for all capabilities (current)
 
 **Next Phase Options**
-- **Vertex AI Integration**: Replace mock handlers (lines 154-212) with real Google Cloud AI calls
 - **Cloud Run Deployment**: Deploy containerized app with authentication
 - **Testing**: Add pytest suite for A2A compliance validation
+- **Authentication**: Add bearer token authentication for production
 
-## Modifying AI Capabilities
+## AI Capabilities Architecture
 
-To replace mock implementations with real AI:
+All three capabilities use **Google Gemini API** (`gemini-pro-latest` model):
 
-1. Update capability handlers in `main.py`:
-   - `handle_text_summarization()` at line 154
-   - `handle_sentiment_analysis()` at line 173
-   - `handle_data_extraction()` at line 193
+1. **Text Summarization** (`handle_text_summarization()` - line ~175):
+   - Accepts text and max_length parameters
+   - Uses prompt engineering to request summary of specific length
+   - Returns summary with compression metrics
 
-2. Add Vertex AI dependencies to `requirements.txt`:
-   ```
-   google-cloud-aiplatform==1.38.1  # Already present
-   ```
+2. **Sentiment Analysis** (`handle_sentiment_analysis()` - line ~210):
+   - Prompts Gemini for structured JSON sentiment output
+   - Returns sentiment label, confidence, and score breakdown
+   - JSON cleaning to handle markdown code blocks
 
-3. Update `.well-known/agent.json` with real processing limits (max_length, timeout)
-
-4. Add GCP credentials handling for Vertex AI authentication
+3. **Data Extraction** (`handle_data_extraction()` - line ~254):
+   - Prompts Gemini to extract entities by type
+   - Returns structured entities with salience scores
+   - Supports: persons, locations, organizations, dates, events, phone numbers, emails
 
 ## Deployment Notes
 
@@ -97,7 +106,9 @@ To replace mock implementations with real AI:
 - Dockerfile optimized for Cloud Run (non-root user, healthcheck, slim base)
 - Port 8080 hardcoded for Cloud Run compatibility
 - Authentication currently disabled (`"required": false` in agent.json) - enable for production
-- IAM roles needed: Cloud Run Invoker, Vertex AI User (for real AI integration)
+- **Environment Setup**: Requires `GEMINI_API_KEY` environment variable
+- For Cloud Run: Use Secret Manager to store Gemini API key securely
+- No service account or IAM roles needed (Gemini API uses API key authentication)
 
 ## A2A Protocol Requirements
 
