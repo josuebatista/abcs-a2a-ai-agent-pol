@@ -467,6 +467,12 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 - ✅ **v0.6**: Fixed credential conflicts and data extraction
 - 🔄 **Next**: Authentication and rate limiting for production
 
-## License
+## Contributing
+- Fork the repository
+- Create your feature branch (git checkout -b feature/amazing-feature)
+- Commit your changes (git commit -m 'Add some amazing feature')
+- Push to the branch (git push origin feature/amazing-feature)
+- Open a Pull Request
 
-This is a proof-of-life (POL) project for A2A protocol compliance testing.
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
