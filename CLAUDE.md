@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Built as a proof-of-concept for GCP Cloud Run deployment with FastAPI.
+An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Production-ready proof-of-concept deployed on GCP Cloud Run with FastAPI and Gemini 2.5 Flash API.
 
 ## Development Commands
 
@@ -13,12 +13,22 @@ An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2
 pip install -r requirements.txt
 python main.py  # Runs on http://localhost:8080
 
-# Docker
+# Docker (use port 8081 if 8080 is busy)
 docker build -t a2a-agent .
-docker run -p 8080:8080 a2a-agent
+docker run -p 8080:8080 --rm \
+  -e GEMINI_API_KEY="YOUR_KEY" \
+  --name a2a-test \
+  a2a-agent
 
-# Cloud Run deployment
-gcloud run deploy a2a-agent --source . --platform managed --region us-central1
+# Cloud Run deployment with Secret Manager
+gcloud run deploy a2a-agent \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --update-secrets GEMINI_API_KEY=gemini-api-key:latest \
+  --memory 512Mi \
+  --timeout 300
 
 # Testing endpoints (see README.md for complete curl examples)
 curl -s http://localhost:8080/health | jq .
@@ -31,7 +41,8 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 - Single FastAPI app implementing A2A protocol specification
 - In-memory task storage (`tasks: Dict[str, Dict]`) - replace with persistent storage for production
 - Background task processing using FastAPI's `BackgroundTasks`
-- Three capability handlers: `handle_text_summarization()`, `handle_sentiment_analysis()`, `handle_data_extraction()`
+- Three capability handlers using Gemini 2.5 Flash API
+- Environment credential conflict resolution for Cloud Run deployment
 
 **A2A Protocol Flow**
 1. **Discovery**: Primary agents fetch `/.well-known/agent.json` (served via StaticFiles)
@@ -41,81 +52,172 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 5. **Task States**: `pending` → `running` → `completed`/`failed`
 
 **Key Components**
-- Lines 56-66: Pydantic models for JSON-RPC request/response
-- Lines 141-173: `process_task()` - background processor routing tasks to handlers
-- Lines 175-323: Real AI capability handlers using Gemini API
-- Line 50: Static file mount for `.well-known/agent.json`
+- Pydantic models for JSON-RPC request/response
+- `process_task()`: Background processor routing tasks to handlers
+- Real AI capability handlers using Gemini 2.5 Flash
+- Static file mount for `.well-known/agent.json`
+- Debug endpoints: `/debug/config` for troubleshooting
+- Environment cleanup to prevent credential conflicts
 
-**Capabilities Defined (All powered by Gemini API)**
-- `text.summarize`: Text summarization using Gemini Pro
-- `text.analyze_sentiment`: Sentiment analysis with structured JSON output from Gemini
-- `data.extract`: Entity extraction with salience scoring via Gemini
+**Capabilities (All powered by Gemini 2.5 Flash)**
+- `text.summarize`: Text summarization with configurable length
+- `text.analyze_sentiment`: Sentiment analysis with confidence scores
+- `data.extract`: Entity extraction with fallback regex parsing
 
-## Agent Discovery Card
+## Critical Deployment Knowledge
 
-`.well-known/agent.json` declares:
-- 3 capabilities with complete JSON schemas (input/output)
-- RPC endpoints following A2A specification
-- Status codes (pending/running/completed/failed)
-- Authentication config (currently disabled for development)
-- Metadata for ServiceNow discovery
+### Gemini API Setup
+1. **API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. **Model**: Uses `gemini-2.5-flash` (NOT `gemini-pro-latest`)
+3. **Validation**: Always test API key with curl before deployment
+
+### Secret Manager Configuration
+```bash
+# Create secret WITHOUT newline (critical!)
+echo -n "YOUR_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+
+# Or use printf (more reliable)
+printf "YOUR_API_KEY" | gcloud secrets versions add gemini-api-key --data-file=-
+```
+
+### Known Issues and Solutions
+
+**Issue**: "Illegal metadata" or "API_KEY_INVALID" errors in Cloud Run
+**Cause**: Credential conflict between Cloud Run's automatic auth and Gemini API key
+**Solution**: Code clears Google Cloud credentials on startup:
+```python
+# Clear Google Cloud credentials to prevent conflicts
+if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+    del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+```
+
+**Issue**: Data extraction JSON parse errors
+**Solution**: Implemented with fallback regex extraction for emails/phones
+
+**Issue**: Secret not loading in Cloud Run
+**Solution**: Use `--update-secrets` flag (not `--set-secrets`) and grant service account access:
+```bash
+gcloud secrets add-iam-policy-binding gemini-api-key \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+```
 
 ## Current Status
 
-**Working (v0.4)**
-- ✅ Complete A2A protocol implementation
-- ✅ All endpoints tested and functional locally
-- ✅ JSON-RPC 2.0 + SSE working
-- ✅ Real AI capabilities using Gemini API
-- ✅ All three handlers tested with live Gemini API calls
-- ✅ Simplified authentication (single API key)
+**Working (v0.5)**
+- ✅ Production deployment on Cloud Run
+- ✅ Secret Manager integration
+- ✅ Credential conflict resolution
+- ✅ All three AI capabilities with Gemini 2.5 Flash
+- ✅ Comprehensive error handling and fallbacks
+- ✅ Docker containerization with proper environment isolation
+- ✅ Complete test suite and documentation
 
 **Version History**
 - v0.1: Initial project structure
 - v0.2: Working A2A agent with mock capabilities
-- v0.3: Real AI integration with Vertex AI and Natural Language API
-- v0.4: Migrated to Gemini API for all capabilities (current)
+- v0.3: Real AI integration with Vertex AI
+- v0.4: Migrated to Gemini API
+- v0.5: Production Cloud Run deployment with Secret Manager (current)
 
 **Next Phase Options**
-- **Cloud Run Deployment**: Deploy containerized app with authentication
-- **Testing**: Add pytest suite for A2A compliance validation
 - **Authentication**: Add bearer token authentication for production
+- **Rate Limiting**: Implement request throttling
+- **Monitoring**: Add Cloud Monitoring and alerting
+- **Database**: Replace in-memory storage with Firestore
 
 ## AI Capabilities Architecture
 
-All three capabilities use **Google Gemini API** (`gemini-pro-latest` model):
+All three capabilities use **Google Gemini 2.5 Flash API**:
 
-1. **Text Summarization** (`handle_text_summarization()` - line ~175):
+1. **Text Summarization** (`handle_text_summarization()`):
    - Accepts text and max_length parameters
-   - Uses prompt engineering to request summary of specific length
+   - Prompt engineering for specific length summaries
    - Returns summary with compression metrics
+   - 30-second timeout with async processing
 
-2. **Sentiment Analysis** (`handle_sentiment_analysis()` - line ~210):
-   - Prompts Gemini for structured JSON sentiment output
+2. **Sentiment Analysis** (`handle_sentiment_analysis()`):
+   - Structured JSON output from Gemini
    - Returns sentiment label, confidence, and score breakdown
-   - JSON cleaning to handle markdown code blocks
+   - Automatic JSON cleaning for markdown artifacts
 
-3. **Data Extraction** (`handle_data_extraction()` - line ~254):
-   - Prompts Gemini to extract entities by type
-   - Returns structured entities with salience scores
-   - Supports: persons, locations, organizations, dates, events, phone numbers, emails
+3. **Data Extraction** (`handle_data_extraction()`):
+   - Extracts: persons, locations, organizations, dates, events, phones, emails
+   - Fallback regex extraction if Gemini JSON is malformed
+   - Returns entities with salience scores
 
-## Deployment Notes
+## Deployment Architecture
 
-- User has GCP account with Cloud Run access and billing enabled
-- Dockerfile optimized for Cloud Run (non-root user, healthcheck, slim base)
-- Port 8080 hardcoded for Cloud Run compatibility
-- Authentication currently disabled (`"required": false` in agent.json) - enable for production
-- **Environment Setup**: Requires `GEMINI_API_KEY` environment variable
-- For Cloud Run: Use Secret Manager to store Gemini API key securely
-- No service account or IAM roles needed (Gemini API uses API key authentication)
+### Docker Configuration
+- Base image: `python:3.9-slim`
+- Non-root user for security
+- Environment variables cleared to prevent conflicts
+- Healthcheck endpoint configured
+- Port 8080 exposed for Cloud Run
 
-## A2A Protocol Requirements
+### Cloud Run Configuration
+- Region: `us-central1`
+- Memory: 512Mi minimum
+- Timeout: 300 seconds
+- Auto-scaling enabled
+- Unauthenticated access (for POC)
+
+### Environment Variables
+- `GEMINI_API_KEY`: Required, loaded from Secret Manager
+- `PORT`: Set to 8080 by Cloud Run
+- Google credentials explicitly cleared on startup
+
+## Testing Strategy
+
+### Local Testing
+```bash
+# Test with Docker
+docker run -p 8081:8080 --rm \
+  -e GEMINI_API_KEY="YOUR_KEY" \
+  a2a-agent
+
+# Verify all capabilities
+./test-a2a.sh http://localhost:8081
+```
+
+### Cloud Run Testing
+```bash
+SERVICE_URL=$(gcloud run services describe a2a-agent --region us-central1 --format 'value(status.url)')
+./test-a2a.sh $SERVICE_URL
+```
+
+## Debug Tools
+
+### Diagnostic Endpoints
+- `/health`: Check API configuration status
+- `/debug/config`: View environment and configuration
+- `/test/direct`: Test Gemini directly (if implemented)
+
+### Log Analysis
+```bash
+# View initialization logs
+gcloud run services logs read a2a-agent \
+  --region us-central1 \
+  --limit 50 | grep -E "API key|SUCCESS|ERROR"
+
+# Real-time monitoring
+gcloud alpha run services logs tail a2a-agent --region us-central1
+```
+
+## A2A Protocol Compliance
 
 Must maintain:
 - Agent card at `/.well-known/agent.json` with proper capability schemas
 - JSON-RPC 2.0 format: `{"method": "text.summarize", "params": {...}, "id": "..."}`
 - Status reporting: pending → running → completed/failed
-- Artifact returns in result object
 - SSE support for real-time updates
 - ServiceNow-compatible discovery mechanism
+
+## Production Considerations
+
+1. **Security**: Enable authentication in agent.json for production
+2. **Persistence**: Replace in-memory task storage with Firestore/Cloud SQL
+3. **Monitoring**: Add Cloud Monitoring metrics and alerts
+4. **Rate Limiting**: Implement quotas to prevent abuse
+5. **Error Tracking**: Integrate with Cloud Error Reporting
+6. **Scaling**: Configure auto-scaling parameters based on load testing
