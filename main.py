@@ -13,6 +13,7 @@ import uuid
 import asyncio
 import logging
 import os
+import time
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -26,18 +27,97 @@ import google.generativeai as genai
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# CRITICAL: Clear Google Cloud credentials to prevent conflicts with API key auth
+# This must be done BEFORE importing or using the Gemini SDK
+if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+    logger.info("Clearing GOOGLE_APPLICATION_CREDENTIALS to prevent auth conflicts")
+    del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+
+# Also clear other potential credential sources
+for env_var in ["GOOGLE_CLOUD_PROJECT", "GCP_PROJECT", "GCLOUD_PROJECT"]:
+    if env_var in os.environ:
+        logger.info(f"Clearing {env_var}")
+        del os.environ[env_var]
+
 # Initialize Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+raw_api_key = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = None
+GEMINI_MODEL = None  # Will be set after successful initialization
+
+# Aggressively clean the API key
+if raw_api_key:
+    # Log the raw state
+    logger.info(f"Raw API key length: {len(raw_api_key)}")
+    logger.info(f"Raw API key repr: {repr(raw_api_key[:10])}...")
+    
+    # Strip all whitespace and control characters
+    cleaned_key = raw_api_key.strip().replace('\n', '').replace('\r', '').replace('\t', '').replace(' ', '')
+    
+    # Remove any non-ASCII characters
+    cleaned_key = ''.join(c for c in cleaned_key if ord(c) < 128 and c.isprintable())
+    
+    # Final validation - API keys should be 39 chars
+    if len(cleaned_key) == 39 and cleaned_key.startswith('AIza'):
+        GEMINI_API_KEY = cleaned_key
+        logger.info(f"✓ API key cleaned successfully (length: {len(GEMINI_API_KEY)})")
+        logger.info(f"API key pattern: {GEMINI_API_KEY[:5]}...{GEMINI_API_KEY[-5:]}")
+    else:
+        logger.error(f"API key validation failed. Length: {len(cleaned_key)}, Starts with: {cleaned_key[:4] if len(cleaned_key) > 4 else 'too short'}")
+        logger.error(f"Expected length: 39, got: {len(cleaned_key)}")
+else:
+    logger.error("GEMINI_API_KEY not found in environment variables")
+    logger.error(f"Available env vars: {list(os.environ.keys())}")
 
 if GEMINI_API_KEY:
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        logger.info("Gemini API initialized successfully")
+        # IMPORTANT: Force REST transport to avoid gRPC metadata conflicts in Cloud Run
+        logger.info("Configuring Gemini API with REST transport...")
+        
+        # Try configuring with REST transport (if supported in your SDK version)
+        try:
+            genai.configure(
+                api_key=GEMINI_API_KEY,
+                transport="rest"  # This forces REST instead of gRPC
+            )
+            logger.info("Configured with REST transport")
+        except TypeError:
+            # Fallback if transport parameter not supported
+            logger.info("REST transport not supported, using default")
+            genai.configure(api_key=GEMINI_API_KEY)
+        
+        # Test with a simple model
+        test_model_name = "gemini-2.5-flash"
+        logger.info(f"Testing with {test_model_name}...")
+        
+        generation_config = {
+            "temperature": 0.7,
+            "max_output_tokens": 2048,
+        }
+        
+        test_model = genai.GenerativeModel(
+            test_model_name,
+            generation_config=generation_config
+        )
+        test_response = test_model.generate_content("Say OK")
+        
+        if test_response and test_response.text:
+            GEMINI_MODEL = test_model_name
+            logger.info(f"✓ SUCCESS: Gemini API working with {GEMINI_MODEL}")
+            logger.info(f"Test response: {test_response.text[:50]}")
+        else:
+            logger.error("Model returned empty response")
+            GEMINI_API_KEY = None
+            
     except Exception as e:
-        logger.error(f"Failed to initialize Gemini API: {str(e)}")
-        logger.warning("Application will start but AI capabilities may not work without proper API key")
+        logger.error(f"Failed to initialize Gemini: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        if "API_KEY_INVALID" in str(e) or "403" in str(e):
+            logger.error("Authentication failed - likely credential conflict with Cloud Run")
+        GEMINI_API_KEY = None
+        GEMINI_MODEL = None
 else:
-    logger.warning("GEMINI_API_KEY not set. AI capabilities will not work.")
+    logger.warning("GEMINI_API_KEY not available. AI capabilities will not work.")
+    GEMINI_MODEL = None
 
 app = FastAPI(
     title="A2A AI Agent",
@@ -67,7 +147,72 @@ class TaskStatus(BaseModel):
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    # More detailed health check for debugging
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "gemini_configured": bool(GEMINI_API_KEY and GEMINI_MODEL),
+        "model": GEMINI_MODEL,
+        "api_key_loaded": bool(GEMINI_API_KEY),
+        "model_selected": bool(GEMINI_MODEL)
+    }
+    
+    # Add warning if not fully configured
+    if not health_status["gemini_configured"]:
+        health_status["warning"] = "AI capabilities not available"
+        if not health_status["api_key_loaded"]:
+            health_status["issue"] = "API key not loaded or invalid"
+        elif not health_status["model_selected"]:
+            health_status["issue"] = "Model initialization failed"
+    
+    return health_status
+
+# Debug endpoint (remove in production)
+@app.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check configuration - REMOVE IN PRODUCTION"""
+    return {
+        "env_vars_present": {
+            "GEMINI_API_KEY": "GEMINI_API_KEY" in os.environ,
+            "GOOGLE_APPLICATION_CREDENTIALS": "GOOGLE_APPLICATION_CREDENTIALS" in os.environ,
+            "PORT": os.environ.get("PORT", "not set"),
+            "K_SERVICE": os.environ.get("K_SERVICE", "not set"),
+            "K_REVISION": os.environ.get("K_REVISION", "not set"),
+        },
+        "api_key_cleaned": GEMINI_API_KEY is not None,
+        "api_key_length": len(GEMINI_API_KEY) if GEMINI_API_KEY else 0,
+        "model": GEMINI_MODEL,
+        "model_initialized": GEMINI_MODEL is not None,
+        "all_env_vars": list(os.environ.keys())
+    }
+
+# Test endpoint for Gemini
+@app.get("/test/gemini")
+async def test_gemini():
+    """Test Gemini API directly"""
+    try:
+        if not GEMINI_MODEL:
+            return {
+                "success": False,
+                "error": "Gemini not initialized",
+                "model": None
+            }
+        
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        response = model.generate_content("Say 'Hello World'")
+        
+        return {
+            "success": True,
+            "model": GEMINI_MODEL,
+            "response": response.text[:100] if response and response.text else None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "model": GEMINI_MODEL,
+            "error_type": type(e).__name__
+        }
 
 # A2A Discovery endpoint - Agent Card
 @app.get("/.well-known/agent.json")
@@ -82,6 +227,17 @@ async def get_agent_card():
 # JSON-RPC endpoint for task requests
 @app.post("/rpc")
 async def handle_rpc_request(request: TaskRequest, background_tasks: BackgroundTasks):
+    # Check if Gemini is configured
+    if not GEMINI_API_KEY or not GEMINI_MODEL:
+        return {
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32603,
+                "message": "Internal error: AI capabilities not configured"
+            },
+            "id": request.id
+        }
+    
     task_id = request.id or str(uuid.uuid4())
 
     # Initialize task
@@ -151,11 +307,11 @@ async def process_task(task_id: str):
 
         # Route to appropriate capability handler
         if method == "text.summarize":
-            result = await handle_text_summarization(params)
+            result = await handle_text_summarization(params, task)
         elif method == "text.analyze_sentiment":
-            result = await handle_sentiment_analysis(params)
+            result = await handle_sentiment_analysis(params, task)
         elif method == "data.extract":
-            result = await handle_data_extraction(params)
+            result = await handle_data_extraction(params, task)
         else:
             raise ValueError(f"Unsupported method: {method}")
 
@@ -172,7 +328,7 @@ async def process_task(task_id: str):
         task["failed_at"] = datetime.utcnow().isoformat()
 
 # Capability handlers using Gemini API
-async def handle_text_summarization(params: Dict[str, Any]) -> Dict[str, Any]:
+async def handle_text_summarization(params: Dict[str, Any], task: Dict = None) -> Dict[str, Any]:
     """Text summarization using Gemini API"""
     text = params.get("text", "")
     max_length = params.get("max_length", 100)
@@ -184,30 +340,48 @@ async def handle_text_summarization(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be at least 10 characters long")
 
     try:
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro-latest')
+        if task:
+            task["progress"] = 30
+        
+        # Initialize Gemini model - using cached configuration
+        model = genai.GenerativeModel(GEMINI_MODEL)
 
         # Create prompt
         prompt = f"""Summarize the following text in approximately {max_length} words or less:
 
 {text}"""
 
-        # Generate summary
-        response = model.generate_content(prompt)
+        if task:
+            task["progress"] = 50
+        
+        # Generate summary with timeout
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=30.0
+        )
+        
         summary = response.text.strip()
+
+        if task:
+            task["progress"] = 90
 
         return {
             "summary": summary,
             "original_length": len(text),
             "summary_length": len(summary),
-            "compression_ratio": round(len(summary) / len(text), 2)
+            "compression_ratio": round(len(summary) / len(text), 2),
+            "model_used": GEMINI_MODEL
         }
 
+    except asyncio.TimeoutError:
+        raise ValueError("Request timed out after 30 seconds")
     except Exception as e:
         logger.error(f"Summarization failed: {str(e)}")
+        if "API_KEY_INVALID" in str(e):
+            raise ValueError("API key authentication failed - possible credential conflict")
         raise ValueError(f"Failed to generate summary: {str(e)}")
 
-async def handle_sentiment_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
+async def handle_sentiment_analysis(params: Dict[str, Any], task: Dict = None) -> Dict[str, Any]:
     """Sentiment analysis using Gemini API"""
     text = params.get("text", "")
 
@@ -218,8 +392,11 @@ async def handle_sentiment_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be 5000 characters or less")
 
     try:
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro-latest')
+        if task:
+            task["progress"] = 30
+        
+        # Initialize Gemini model with correct name
+        model = genai.GenerativeModel(GEMINI_MODEL)
 
         # Create prompt for structured sentiment analysis
         prompt = f"""Analyze the sentiment of the following text and respond with ONLY a JSON object in this exact format:
@@ -235,23 +412,42 @@ async def handle_sentiment_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
 
 Text: {text}"""
 
-        # Generate analysis
-        response = model.generate_content(prompt)
+        if task:
+            task["progress"] = 50
+
+        # Generate analysis with timeout
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=30.0
+        )
+        
         result_text = response.text.strip()
+
+        if task:
+            task["progress"] = 70
 
         # Clean up JSON response (remove markdown code blocks if present)
         result_text = result_text.replace('```json', '').replace('```', '').strip()
 
         # Parse JSON response
         result = json.loads(result_text)
+        result["model_used"] = GEMINI_MODEL
+
+        if task:
+            task["progress"] = 90
 
         return result
 
+    except asyncio.TimeoutError:
+        raise ValueError("Request timed out after 30 seconds")
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON response: {result_text}")
+        raise ValueError(f"Failed to parse sentiment analysis response: {str(e)}")
     except Exception as e:
         logger.error(f"Sentiment analysis failed: {str(e)}")
         raise ValueError(f"Failed to analyze sentiment: {str(e)}")
 
-async def handle_data_extraction(params: Dict[str, Any]) -> Dict[str, Any]:
+async def handle_data_extraction(params: Dict[str, Any], task: Dict = None) -> Dict[str, Any]:
     """Data extraction using Gemini API entity recognition"""
     text = params.get("text", "")
     schema = params.get("schema", {})
@@ -263,41 +459,96 @@ async def handle_data_extraction(params: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Text must be 10000 characters or less")
 
     try:
-        # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-pro-latest')
+        if task:
+            task["progress"] = 30
+        
+        # Initialize Gemini model with correct name
+        model = genai.GenerativeModel(GEMINI_MODEL)
 
-        # Create prompt for entity extraction
-        prompt = f"""Extract the entities from the following text.
-Recognize the following entity types:
-- Persons
-- Locations
-- Organizations
-- Dates
-- Events
-- Phone numbers
-- Emails
+        # More explicit prompt for valid JSON
+        prompt = f"""Extract entities from the following text and return ONLY valid JSON.
 
-Return the result as a JSON object with keys matching the entity types above (lowercase, plural).
-Each entity should have "name" and "salience" (a number between 0 and 1 indicating importance).
+Text: {text}
 
-Example format:
+Return a JSON object with these keys (use empty arrays if no entities found):
+- persons: array of {{"name": "...", "salience": 0.0-1.0}}
+- locations: array of {{"name": "...", "salience": 0.0-1.0}}
+- organizations: array of {{"name": "...", "salience": 0.0-1.0}}
+- dates: array of {{"name": "...", "salience": 0.0-1.0}}
+- events: array of {{"name": "...", "salience": 0.0-1.0}}
+- phones: array of {{"name": "...", "salience": 0.0-1.0}}
+- emails: array of {{"name": "...", "salience": 0.0-1.0}}
+
+Example response format:
 {{
-    "persons": [{{"name": "John Doe", "salience": 0.8}}],
-    "locations": [{{"name": "New York", "salience": 0.6}}],
-    "organizations": [{{"name": "Acme Inc.", "salience": 0.7}}]
+  "persons": [{{"name": "John Doe", "salience": 0.9}}],
+  "locations": [{{"name": "New York", "salience": 0.7}}],
+  "organizations": [],
+  "dates": [],
+  "events": [],
+  "phones": [],
+  "emails": []
 }}
 
-Text: {text}"""
+Important: Return ONLY the JSON object, no markdown, no explanation, no code blocks."""
 
-        # Generate entity extraction
-        response = model.generate_content(prompt)
+        if task:
+            task["progress"] = 50
+
+        # Generate entity extraction with timeout
+        response = await asyncio.wait_for(
+            asyncio.to_thread(model.generate_content, prompt),
+            timeout=30.0
+        )
+        
         result_text = response.text.strip()
 
-        # Clean up JSON response (remove markdown code blocks if present)
-        result_text = result_text.replace('```json', '').replace('```', '').strip()
+        if task:
+            task["progress"] = 70
 
-        # Parse JSON response
-        extracted_data = json.loads(result_text)
+        # Clean up JSON response more aggressively
+        # Remove markdown code blocks if present
+        result_text = result_text.replace('```json', '').replace('```', '').strip()
+        
+        # Remove any text before the first {
+        if '{' in result_text:
+            result_text = result_text[result_text.index('{'):]
+        
+        # Remove any text after the last }
+        if '}' in result_text:
+            result_text = result_text[:result_text.rindex('}')+1]
+        
+        # Log the response for debugging
+        logger.info(f"Gemini response (first 200 chars): {result_text[:200]}")
+
+        try:
+            # Parse JSON response
+            extracted_data = json.loads(result_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON: {result_text[:500]}")
+            # Fallback: try to extract with regex or return empty structure
+            extracted_data = {
+                "persons": [],
+                "locations": [],
+                "organizations": [],
+                "dates": [],
+                "events": [],
+                "phones": [],
+                "emails": []
+            }
+            
+            # Simple extraction fallback
+            import re
+            
+            # Extract emails
+            emails = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+            if emails:
+                extracted_data["emails"] = [{"name": email, "salience": 0.8} for email in emails]
+            
+            # Extract phone numbers
+            phones = re.findall(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', text)
+            if phones:
+                extracted_data["phones"] = [{"name": phone, "salience": 0.7} for phone in phones]
 
         # Calculate entity count and average confidence
         entity_count = 0
@@ -312,12 +563,18 @@ Text: {text}"""
 
         avg_confidence = round(total_salience / entity_count, 2) if entity_count > 0 else 0.0
 
+        if task:
+            task["progress"] = 90
+
         return {
             "extracted_data": extracted_data,
             "entity_count": entity_count,
-            "confidence": avg_confidence
+            "confidence": avg_confidence,
+            "model_used": GEMINI_MODEL
         }
 
+    except asyncio.TimeoutError:
+        raise ValueError("Request timed out after 30 seconds")
     except Exception as e:
         logger.error(f"Data extraction failed: {str(e)}")
         raise ValueError(f"Failed to extract data: {str(e)}")
