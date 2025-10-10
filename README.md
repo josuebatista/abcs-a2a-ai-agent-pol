@@ -8,7 +8,7 @@ This proof-of-concept implements Google's A2A protocol specification with:
 - **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction - all powered by Gemini API
 - **JSON-RPC 2.0**: Standard protocol for task requests
 - **Server-Sent Events**: Real-time status updates
-- **Agent Discovery**: Standard `.well-known/agent.json` endpoint
+- **Agent Discovery**: Standard `.well-known/agent-card.json` endpoint (A2A v0.3.0 compliant)
 - **Cloud Run Ready**: Optimized for GCP deployment with Secret Manager integration
 - **Real AI Integration**: Uses Google Gemini 2.5 Flash API for all AI capabilities
 
@@ -61,7 +61,7 @@ This proof-of-concept implements Google's A2A protocol specification with:
 5. **Access the application**:
    - API Documentation: http://localhost:8080/docs
    - Health Check: http://localhost:8080/health
-   - Agent Card: http://localhost:8080/.well-known/agent.json
+   - Agent Card: http://localhost:8080/.well-known/agent-card.json
 
 ## Google Cloud Run Deployment
 
@@ -139,8 +139,8 @@ This proof-of-concept implements Google's A2A protocol specification with:
 # Health check
 curl -s $SERVICE_URL/health | jq .
 
-# Agent discovery
-curl -s $SERVICE_URL/.well-known/agent.json | jq .
+# Agent discovery (A2A v0.3.0 compliant)
+curl -s $SERVICE_URL/.well-known/agent-card.json | jq .
 ```
 
 ### 2. Text Summarization
@@ -227,10 +227,10 @@ curl -s -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
 curl -N https://a2a-agent-298609520814.us-central1.run.app/tasks/$TASK_ID/stream
 ```
 
-### 6. Check Agent Discovery (A2A Protocol)
+### 6. Check Agent Discovery (A2A Protocol v0.3.0)
 ```bash
 # Get agent capabilities
-curl -s https://a2a-agent-298609520814.us-central1.run.app/.well-known/agent.json | jq .
+curl -s https://a2a-agent-298609520814.us-central1.run.app/.well-known/agent-card.json | jq .
 
 # Check health
 curl -s https://a2a-agent-298609520814.us-central1.run.app/health | jq .
@@ -432,7 +432,7 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 ├── requirements.txt     # Python dependencies  
 ├── Dockerfile          # Cloud Run container with environment fixes
 ├── .well-known/
-│   └── agent.json      # Agent discovery card
+│   └── agent-card.json # Agent discovery card (A2A v0.3.0)
 ├── .env.example        # Environment variable template
 └── README.md           # This file
 ```
@@ -464,8 +464,8 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 - ✅ **v0.3**: Real AI integration with Vertex AI
 - ✅ **v0.4**: Migrated to Gemini API
 - ✅ **v0.5**: Production Cloud Run deployment with Secret Manager
-- ✅ **v0.6**: Fixed credential conflicts and data extraction
-- 🔄 **Next**: Authentication and rate limiting for production
+- ✅ **v0.6**: A2A Protocol v0.3.0 compliance - agent-card.json migration (current)
+- 🔄 **Next**: Complete agent card schema migration (Priority 2) and authentication
 
 ## Contributing
 - Fork the repository

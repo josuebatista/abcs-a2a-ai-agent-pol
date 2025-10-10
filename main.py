@@ -214,12 +214,22 @@ async def test_gemini():
             "error_type": type(e).__name__
         }
 
-# A2A Discovery endpoint - Agent Card
-@app.get("/.well-known/agent.json")
+# A2A Discovery endpoint - Agent Card (v0.3.0 compliant)
+@app.get("/.well-known/agent-card.json")
 async def get_agent_card():
     # This will be served by static files, but keeping as fallback
     try:
-        with open(".well-known/agent.json", "r") as f:
+        with open(".well-known/agent-card.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Agent card not found")
+
+# Legacy endpoint for backwards compatibility (v0.2.1)
+@app.get("/.well-known/agent.json")
+async def get_agent_card_legacy():
+    # Redirect to new endpoint
+    try:
+        with open(".well-known/agent-card.json", "r") as f:
             return json.load(f)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Agent card not found")
