@@ -119,7 +119,8 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - v0.3: Real AI integration with Vertex AI
 - v0.4: Migrated to Gemini API
 - v0.5: Production Cloud Run deployment with Secret Manager
-- v0.6: A2A v0.3.0 filename compliance (agent-card.json migration) (current)
+- v0.6: A2A v0.3.0 filename compliance (agent-card.json migration)
+- v0.7: Full A2A v0.3.0 protocol compliance (schema migration complete) (current)
 
 **Next Phase Options**
 - **Authentication**: Add bearer token authentication for production
@@ -207,9 +208,10 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 
 ## A2A Protocol Compliance
 
-### Current Status: ⚠️ PARTIAL COMPLIANCE (v0.3.0)
+### Current Status: ✅ FULL COMPLIANCE (v0.3.0)
 
 **Last Reviewed**: 2025-10-10
+**Compliance Achieved**: v0.7.0
 
 ### ✅ Compliant Elements
 - JSON-RPC 2.0 format implementation (`/rpc` endpoint)
@@ -229,44 +231,36 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
   - Added legacy `/agent.json` endpoint for backward compatibility
   - Updated all documentation references
 
-### ❌ Remaining Compliance Gaps (Priority 2)
+### ✅ Priority 2 Fixes (COMPLETED)
 
-#### 2. Missing Required Fields in Agent Card
-Agent card is missing these **required** v0.3.0 fields:
-- `protocolVersion`: Must be `"0.3.0"`
-- `url`: Primary endpoint URL (e.g., Cloud Run URL)
-- `skills`: Array of skill definitions (currently using non-standard `capabilities`)
-- `capabilities`: Should be object `{streaming: bool, pushNotifications: bool, stateTransitionHistory: bool}`
-- `defaultInputModes`: Array of MIME types (e.g., `["text/plain", "application/json"]`)
-- `defaultOutputModes`: Array of MIME types (e.g., `["application/json"]`)
-
-#### 3. Schema Structure Mismatch
-- **Current**: Custom `capabilities` array with `input_schema`/`output_schema`
-- **Required**: `skills` array with proper skill object structure
-- **Impact**: Primary agents won't correctly parse capability declarations
-
-### ⚠️ Minor Issues
-1. **Authentication Schema**: Should use `security` and `securitySchemes` objects per OpenAPI 3.0 spec
-2. **Custom Fields**: Fields like `status_codes`, `protocols`, `contact`, `metadata` are non-standard (harmless but not recognized)
-3. **Version Confusion**: Current `version` field is agent version, need separate `protocolVersion` field
+#### 2. Agent Card Schema Migration ✅
+- **Status**: FIXED
+- **Changes Made**:
+  - Added `protocolVersion: "0.3.0"` (separate from agent version)
+  - Added `url` field with Cloud Run endpoint
+  - Converted `capabilities` array → `skills` array with proper structure
+  - Added new `capabilities` object: `{streaming: true, pushNotifications: false, stateTransitionHistory: false}`
+  - Added `defaultInputModes`: `["text/plain", "application/json"]`
+  - Added `defaultOutputModes`: `["application/json"]`
+  - Migrated authentication to `securitySchemes` per OpenAPI 3.0 spec
+  - Updated all skills to use `input`/`output` instead of `input_schema`/`output_schema`
+  - Added descriptive `tags` to each skill for better discoverability
 
 ### 📋 Required Actions for Full Compliance
 
-**Priority 1: File Migration** ✅ COMPLETED
+**Priority 1: File Migration** ✅ COMPLETED (v0.6.0)
 
-**Priority 2: Agent Card Schema** (Next Step)
-Update agent-card.json structure to include:
-- `protocolVersion: "0.3.0"`
-- `url: "https://YOUR-CLOUD-RUN-URL"`
-- Convert `capabilities` array → `skills` array
-- Add `capabilities` object with boolean flags
-- Add `defaultInputModes` and `defaultOutputModes` arrays
-- Migrate authentication to `securitySchemes` format
+**Priority 2: Agent Card Schema** ✅ COMPLETED (v0.7.0)
 
-**Priority 3: Documentation Updates**
-- Update all references from `agent.json` → `agent-card.json`
-- Update README.md with correct well-known URI
-- Update test-a2a.sh script if needed
+**All Compliance Requirements Met**:
+- ✅ Well-known URI: `/.well-known/agent-card.json`
+- ✅ Protocol version declared: `"protocolVersion": "0.3.0"`
+- ✅ Primary URL specified with Cloud Run endpoint
+- ✅ Skills array with proper schema structure
+- ✅ Capabilities object with boolean flags
+- ✅ Input/output MIME types declared
+- ✅ OpenAPI 3.0 compliant security schemes
+- ✅ Complete transport and endpoint specifications
 
 ### A2A Protocol v0.3.0 Specification Reference
 

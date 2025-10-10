@@ -1,18 +1,32 @@
 {
-  "id": "a2a-ai-agent-poc",
+  "protocolVersion": "0.3.0",
   "name": "A2A AI Agent POC",
-  "description": "Agent2Agent Protocol compliant AI agent with real Vertex AI and Natural Language API capabilities for text processing",
-  "version": "0.3.0",
+  "description": "Agent2Agent Protocol compliant AI agent with Gemini 2.5 Flash API capabilities for text summarization, sentiment analysis, and data extraction",
+  "url": "https://a2a-agent-hs6athqpoa-uc.a.run.app",
+  "version": "0.6.0",
   "provider": {
     "name": "ABCS A2A Agent POC",
-    "url": "https://github.com/your-org/abcs-a2a-ai-agent-pol"
+    "url": "https://github.com/josuebatista/abcs-a2a-ai-agent-pol"
   },
-  "capabilities": [
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": false
+  },
+  "defaultInputModes": [
+    "text/plain",
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "skills": [
     {
       "id": "text.summarize",
       "name": "Text Summarization",
-      "description": "Summarizes long text content into concise summaries",
-      "input_schema": {
+      "description": "Summarizes long text content into concise summaries using Gemini 2.5 Flash",
+      "tags": ["nlp", "text-processing", "summarization", "ai"],
+      "input": {
         "type": "object",
         "properties": {
           "text": {
@@ -31,7 +45,7 @@
         },
         "required": ["text"]
       },
-      "output_schema": {
+      "output": {
         "type": "object",
         "properties": {
           "summary": {
@@ -49,6 +63,10 @@
           "compression_ratio": {
             "type": "number",
             "description": "Ratio of summary length to original length"
+          },
+          "model_used": {
+            "type": "string",
+            "description": "AI model used for summarization"
           }
         }
       }
@@ -56,8 +74,9 @@
     {
       "id": "text.analyze_sentiment",
       "name": "Sentiment Analysis",
-      "description": "Analyzes the sentiment of text content",
-      "input_schema": {
+      "description": "Analyzes the sentiment of text content with confidence scores using Gemini 2.5 Flash",
+      "tags": ["nlp", "sentiment-analysis", "text-processing", "ai"],
+      "input": {
         "type": "object",
         "properties": {
           "text": {
@@ -69,7 +88,7 @@
         },
         "required": ["text"]
       },
-      "output_schema": {
+      "output": {
         "type": "object",
         "properties": {
           "sentiment": {
@@ -89,19 +108,26 @@
               "positive": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 1
+                "maximum": 1,
+                "description": "Positive sentiment score"
               },
               "negative": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 1
+                "maximum": 1,
+                "description": "Negative sentiment score"
               },
               "neutral": {
                 "type": "number",
                 "minimum": 0,
-                "maximum": 1
+                "maximum": 1,
+                "description": "Neutral sentiment score"
               }
             }
+          },
+          "model_used": {
+            "type": "string",
+            "description": "AI model used for sentiment analysis"
           }
         }
       }
@@ -109,8 +135,9 @@
     {
       "id": "data.extract",
       "name": "Data Extraction",
-      "description": "Extracts structured data from unstructured text",
-      "input_schema": {
+      "description": "Extracts structured entities (persons, locations, organizations, dates, events, contacts) from unstructured text using Gemini 2.5 Flash with regex fallback",
+      "tags": ["nlp", "entity-extraction", "text-processing", "ai", "ner"],
+      "input": {
         "type": "object",
         "properties": {
           "text": {
@@ -127,50 +154,138 @@
         },
         "required": ["text"]
       },
-      "output_schema": {
+      "output": {
         "type": "object",
         "properties": {
           "extracted_data": {
             "type": "object",
-            "description": "The extracted structured data"
+            "description": "The extracted structured data with entity types",
+            "properties": {
+              "persons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "organizations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "dates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "phones": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              },
+              "emails": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "salience": {"type": "number"}
+                  }
+                }
+              }
+            }
+          },
+          "entity_count": {
+            "type": "integer",
+            "description": "Total number of entities extracted"
           },
           "confidence": {
             "type": "number",
             "minimum": 0,
             "maximum": 1,
             "description": "Overall confidence in the extraction"
+          },
+          "model_used": {
+            "type": "string",
+            "description": "AI model used for data extraction"
           }
         }
       }
     }
   ],
+  "securitySchemes": {
+    "bearerAuth": {
+      "type": "http",
+      "scheme": "bearer",
+      "bearerFormat": "JWT",
+      "description": "Bearer token authentication (optional for POC, required for production)"
+    }
+  },
+  "security": [],
   "endpoints": {
     "rpc": "/rpc",
     "status": "/tasks/{task_id}",
     "stream": "/tasks/{task_id}/stream"
   },
-  "authentication": {
-    "types": ["bearer_token"],
-    "required": false
-  },
-  "protocols": {
-    "jsonrpc": "2.0",
-    "sse": true
-  },
-  "status_codes": {
-    "pending": "Task has been queued for processing",
-    "running": "Task is currently being processed",
-    "completed": "Task has been completed successfully",
-    "failed": "Task processing failed"
+  "transport": {
+    "protocol": "JSONRPC",
+    "version": "2.0",
+    "features": {
+      "sse": true,
+      "polling": true
+    }
   },
   "contact": {
-    "support_url": "https://github.com/your-org/abcs-a2a-ai-agent-pol/issues",
-    "documentation_url": "https://github.com/your-org/abcs-a2a-ai-agent-pol/blob/main/README.md"
+    "name": "ABCS A2A Development Team",
+    "email": "support@example.com",
+    "url": "https://github.com/josuebatista/abcs-a2a-ai-agent-pol/issues"
   },
+  "documentation": "https://github.com/josuebatista/abcs-a2a-ai-agent-pol/blob/main/README.md",
   "metadata": {
     "created": "2025-09-21T23:00:00Z",
-    "updated": "2025-10-05T00:00:00Z",
-    "tags": ["ai", "nlp", "text-processing", "a2a", "google-cloud"],
-    "categories": ["artificial-intelligence", "text-analysis"]
+    "updated": "2025-10-10T00:00:00Z",
+    "tags": ["ai", "nlp", "text-processing", "a2a", "google-cloud", "gemini", "sentiment-analysis", "summarization", "entity-extraction"],
+    "categories": ["artificial-intelligence", "text-analysis", "agent-to-agent"],
+    "environment": "production",
+    "aiProvider": "Google Gemini 2.5 Flash",
+    "compliance": "A2A Protocol v0.3.0"
   }
 }

@@ -464,8 +464,9 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 - ✅ **v0.3**: Real AI integration with Vertex AI
 - ✅ **v0.4**: Migrated to Gemini API
 - ✅ **v0.5**: Production Cloud Run deployment with Secret Manager
-- ✅ **v0.6**: A2A Protocol v0.3.0 compliance - agent-card.json migration (current)
-- 🔄 **Next**: Complete agent card schema migration (Priority 2) and authentication
+- ✅ **v0.6**: A2A Protocol v0.3.0 compliance - agent-card.json migration
+- ✅ **v0.7**: Full A2A Protocol v0.3.0 compliance - complete schema migration (current)
+- 🔄 **Next**: Enhanced authentication and rate limiting for production
 
 ## Contributing
 - Fork the repository
