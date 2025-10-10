@@ -32,7 +32,7 @@ gcloud run deploy a2a-agent \
 
 # Testing endpoints (see README.md for complete curl examples)
 curl -s http://localhost:8080/health | jq .
-curl -s http://localhost:8080/.well-known/agent.json | jq .
+curl -s http://localhost:8080/.well-known/agent-card.json | jq .
 ```
 
 ## Architecture
@@ -45,7 +45,7 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 - Environment credential conflict resolution for Cloud Run deployment
 
 **A2A Protocol Flow**
-1. **Discovery**: Primary agents fetch `/.well-known/agent.json` (served via StaticFiles)
+1. **Discovery**: Primary agents fetch `/.well-known/agent-card.json` (served via StaticFiles)
 2. **Task Submission**: JSON-RPC 2.0 POST to `/rpc` creates task with unique ID
 3. **Background Processing**: `process_task()` routes to capability handlers based on method
 4. **Status Updates**: Clients poll `/tasks/{task_id}` or stream via SSE `/tasks/{task_id}/stream`
@@ -55,7 +55,7 @@ curl -s http://localhost:8080/.well-known/agent.json | jq .
 - Pydantic models for JSON-RPC request/response
 - `process_task()`: Background processor routing tasks to handlers
 - Real AI capability handlers using Gemini 2.5 Flash
-- Static file mount for `.well-known/agent.json`
+- Static file mount for `.well-known/agent-card.json` (with legacy agent.json support)
 - Debug endpoints: `/debug/config` for troubleshooting
 - Environment cleanup to prevent credential conflicts
 
@@ -118,7 +118,8 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - v0.2: Working A2A agent with mock capabilities
 - v0.3: Real AI integration with Vertex AI
 - v0.4: Migrated to Gemini API
-- v0.5: Production Cloud Run deployment with Secret Manager (current)
+- v0.5: Production Cloud Run deployment with Secret Manager
+- v0.6: A2A v0.3.0 filename compliance (agent-card.json migration) (current)
 
 **Next Phase Options**
 - **Authentication**: Add bearer token authentication for production
@@ -206,16 +207,84 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 
 ## A2A Protocol Compliance
 
-Must maintain:
-- Agent card at `/.well-known/agent.json` with proper capability schemas
-- JSON-RPC 2.0 format: `{"method": "text.summarize", "params": {...}, "id": "..."}`
-- Status reporting: pending → running → completed/failed
-- SSE support for real-time updates
-- ServiceNow-compatible discovery mechanism
+### Current Status: ⚠️ PARTIAL COMPLIANCE (v0.3.0)
+
+**Last Reviewed**: 2025-10-10
+
+### ✅ Compliant Elements
+- JSON-RPC 2.0 format implementation (`/rpc` endpoint)
+- Task lifecycle states: `pending` → `running` → `completed`/`failed`
+- SSE streaming support (`/tasks/{task_id}/stream`)
+- Standard endpoints: `/rpc`, `/tasks/{task_id}`, `/tasks/{task_id}/stream`
+- Background task processing
+- HTTPS requirement (Cloud Run deployment)
+
+### ✅ Priority 1 Fixes (COMPLETED)
+
+#### 1. Well-Known URI Path ✅
+- **Status**: FIXED
+- **Changes Made**:
+  - Renamed `/.well-known/agent.json` → `/.well-known/agent-card.json`
+  - Updated main.py endpoints (lines 218-235)
+  - Added legacy `/agent.json` endpoint for backward compatibility
+  - Updated all documentation references
+
+### ❌ Remaining Compliance Gaps (Priority 2)
+
+#### 2. Missing Required Fields in Agent Card
+Agent card is missing these **required** v0.3.0 fields:
+- `protocolVersion`: Must be `"0.3.0"`
+- `url`: Primary endpoint URL (e.g., Cloud Run URL)
+- `skills`: Array of skill definitions (currently using non-standard `capabilities`)
+- `capabilities`: Should be object `{streaming: bool, pushNotifications: bool, stateTransitionHistory: bool}`
+- `defaultInputModes`: Array of MIME types (e.g., `["text/plain", "application/json"]`)
+- `defaultOutputModes`: Array of MIME types (e.g., `["application/json"]`)
+
+#### 3. Schema Structure Mismatch
+- **Current**: Custom `capabilities` array with `input_schema`/`output_schema`
+- **Required**: `skills` array with proper skill object structure
+- **Impact**: Primary agents won't correctly parse capability declarations
+
+### ⚠️ Minor Issues
+1. **Authentication Schema**: Should use `security` and `securitySchemes` objects per OpenAPI 3.0 spec
+2. **Custom Fields**: Fields like `status_codes`, `protocols`, `contact`, `metadata` are non-standard (harmless but not recognized)
+3. **Version Confusion**: Current `version` field is agent version, need separate `protocolVersion` field
+
+### 📋 Required Actions for Full Compliance
+
+**Priority 1: File Migration** ✅ COMPLETED
+
+**Priority 2: Agent Card Schema** (Next Step)
+Update agent-card.json structure to include:
+- `protocolVersion: "0.3.0"`
+- `url: "https://YOUR-CLOUD-RUN-URL"`
+- Convert `capabilities` array → `skills` array
+- Add `capabilities` object with boolean flags
+- Add `defaultInputModes` and `defaultOutputModes` arrays
+- Migrate authentication to `securitySchemes` format
+
+**Priority 3: Documentation Updates**
+- Update all references from `agent.json` → `agent-card.json`
+- Update README.md with correct well-known URI
+- Update test-a2a.sh script if needed
+
+### A2A Protocol v0.3.0 Specification Reference
+
+**Required Compliance Points**:
+- Agent card location: `/.well-known/agent-card.json` (RFC 8615)
+- Transport: HTTPS required
+- Protocol: JSON-RPC 2.0 (implemented ✅)
+- Task ID: Server-generated unique identifier (implemented ✅)
+- Authentication: Standard HTTP transport layer auth
+- Security: TLS 1.3+ recommended
+
+**Version History**:
+- v0.2.1: Used `agent.json` filename
+- v0.3.0: Changed to `agent-card.json`, added signatures, added mTLS to SecuritySchemes
 
 ## Production Considerations
 
-1. **Security**: Enable authentication in agent.json for production
+1. **Security**: Enable authentication in agent-card.json for production
 2. **Persistence**: Replace in-memory task storage with Firestore/Cloud SQL
 3. **Monitoring**: Add Cloud Monitoring metrics and alerts
 4. **Rate Limiting**: Implement quotas to prevent abuse
