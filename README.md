@@ -6,11 +6,13 @@ Agent2Agent Protocol compliant AI agent for Google Cloud Platform, designed to b
 
 This proof-of-concept implements Google's A2A protocol specification with:
 - **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction - all powered by Gemini API
+- **Bearer Token Authentication**: Multi-key authentication with expiry support for privacy and cost protection
 - **JSON-RPC 2.0**: Standard protocol for task requests
 - **Server-Sent Events**: Real-time status updates
 - **Agent Discovery**: Standard `.well-known/agent-card.json` endpoint (A2A v0.3.0 compliant)
 - **Cloud Run Ready**: Optimized for GCP deployment with Secret Manager integration
 - **Real AI Integration**: Uses Google Gemini 2.5 Flash API for all AI capabilities
+- **User Tracking**: Request logging shows which API key created each task
 
 ## Prerequisites
 
@@ -34,7 +36,49 @@ This proof-of-concept implements Google's A2A protocol specification with:
      -d '{"contents": [{"parts": [{"text": "Say hello"}]}]}'
    ```
 
-### 2. Local Development
+### 2. Authentication Setup (Required for Production)
+
+1. **Generate secure API keys**:
+   ```bash
+   # Generate a random API key (44 characters base64)
+   openssl rand -base64 32
+   ```
+
+2. **Create API keys JSON**:
+   ```bash
+   # Use the api-keys-example.json as template
+   # Replace with your generated keys
+   cat > my-api-keys.json << 'EOF'
+   {
+     "your-generated-key-here": {
+       "name": "Primary User",
+       "created": "2025-10-11",
+       "expires": null,
+       "notes": "Main access key"
+     }
+   }
+   EOF
+   ```
+
+3. **Store in Secret Manager** (for Cloud Run):
+   ```bash
+   # Create api-keys secret
+   cat my-api-keys.json | gcloud secrets create api-keys-abcs-test-ai-agent-001 --data-file=-
+
+   # Get Cloud Run service account
+   SERVICE_ACCOUNT=$(gcloud run services describe a2a-agent \
+     --region us-central1 \
+     --format="value(spec.template.spec.serviceAccountName)")
+
+   # Grant access
+   gcloud secrets add-iam-policy-binding api-keys-abcs-test-ai-agent-001 \
+     --member="serviceAccount:${SERVICE_ACCOUNT}" \
+     --role="roles/secretmanager.secretAccessor"
+   ```
+
+**See [AUTHENTICATION.md](AUTHENTICATION.md) for complete authentication setup guide.**
+
+### 3. Local Development
 
 1. **Clone the repository**:
    ```bash
@@ -46,6 +90,12 @@ This proof-of-concept implements Google's A2A protocol specification with:
    ```bash
    cp .env.example .env
    # Edit .env and set your GEMINI_API_KEY
+
+   # For testing with authentication disabled (development only)
+   unset API_KEYS
+
+   # OR set API_KEYS for local testing with auth
+   export API_KEYS='{"test-key-12345":{"name":"Local Dev","created":"2025-10-11","expires":null}}'
    ```
 
 3. **Install dependencies**:
@@ -60,8 +110,8 @@ This proof-of-concept implements Google's A2A protocol specification with:
 
 5. **Access the application**:
    - API Documentation: http://localhost:8080/docs
-   - Health Check: http://localhost:8080/health
-   - Agent Card: http://localhost:8080/.well-known/agent-card.json
+   - Health Check: http://localhost:8080/health (no auth required)
+   - Agent Card: http://localhost:8080/.well-known/agent-card.json (no auth required)
 
 ## Google Cloud Run Deployment
 
@@ -83,25 +133,30 @@ This proof-of-concept implements Google's A2A protocol specification with:
 
 ### Deployment Steps
 
-1. **Deploy to Cloud Run**:
+1. **Deploy to Cloud Run** (with authentication):
    ```bash
    gcloud run deploy a2a-agent \
      --source . \
      --platform managed \
      --region us-central1 \
      --allow-unauthenticated \
-     --update-secrets GEMINI_API_KEY=gemini-api-key:latest \
+     --update-secrets API_KEYS=api-keys-abcs-test-ai-agent-001:latest,GEMINI_API_KEY=gemini-api-key:latest \
      --memory 512Mi \
      --timeout 300
    ```
+
+   **Note**: `--allow-unauthenticated` is used because authentication is handled by the application code (Bearer tokens), not Cloud Run's IAM.
 
 2. **Verify deployment**:
    ```bash
    # Get the service URL
    SERVICE_URL=$(gcloud run services describe a2a-agent --region us-central1 --format 'value(status.url)')
-   
-   # Check health
+
+   # Check health (no auth required)
    curl -s $SERVICE_URL/health | jq .
+
+   # Check agent card (no auth required)
+   curl -s $SERVICE_URL/.well-known/agent-card.json | jq '.security'
    ```
 
 ## Docker Deployment
@@ -132,10 +187,18 @@ This proof-of-concept implements Google's A2A protocol specification with:
 
 ## Complete Testing Suite
 
-### 1. Health and Discovery
+**Important**: Set your API key as an environment variable:
 ```bash
-# Replace SERVICE_URL with your Cloud Run URL or http://localhost:8080 for local
+# Use your actual API key
+export API_KEY="your-api-key-here"
 
+# Set service URL
+export SERVICE_URL="https://a2a-agent-298609520814.us-central1.run.app"
+# OR for local testing: export SERVICE_URL="http://localhost:8080"
+```
+
+### 1. Health and Discovery (No Authentication Required)
+```bash
 # Health check
 curl -s $SERVICE_URL/health | jq .
 
@@ -143,10 +206,11 @@ curl -s $SERVICE_URL/health | jq .
 curl -s $SERVICE_URL/.well-known/agent-card.json | jq .
 ```
 
-### 2. Text Summarization
+### 2. Text Summarization (Authentication Required)
 ```bash
 # Submit summarization task
 curl -s -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "method": "text.summarize",
@@ -158,13 +222,15 @@ curl -s -X POST $SERVICE_URL/rpc \
   }' | jq .
 
 # Check result
-sleep 3 && curl -s $SERVICE_URL/tasks/summary-test | jq .
+sleep 3 && curl -s $SERVICE_URL/tasks/summary-test \
+  -H "Authorization: Bearer $API_KEY" | jq .
 ```
 
-### 3. Sentiment Analysis
+### 3. Sentiment Analysis (Authentication Required)
 ```bash
 # Positive sentiment test
 curl -s -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "method": "text.analyze_sentiment",
@@ -174,10 +240,12 @@ curl -s -X POST $SERVICE_URL/rpc \
     "id": "positive-test"
   }' | jq .
 
-sleep 3 && curl -s $SERVICE_URL/tasks/positive-test | jq .
+sleep 3 && curl -s $SERVICE_URL/tasks/positive-test \
+  -H "Authorization: Bearer $API_KEY" | jq .
 
 # Negative sentiment test
 curl -s -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "method": "text.analyze_sentiment",
@@ -187,13 +255,15 @@ curl -s -X POST $SERVICE_URL/rpc \
     "id": "negative-test"
   }' | jq .
 
-sleep 3 && curl -s $SERVICE_URL/tasks/negative-test | jq .
+sleep 3 && curl -s $SERVICE_URL/tasks/negative-test \
+  -H "Authorization: Bearer $API_KEY" | jq .
 ```
 
-### 4. Data Extraction
+### 4. Data Extraction (Authentication Required)
 ```bash
 # Extract entities
 curl -s -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "method": "data.extract",
@@ -203,16 +273,18 @@ curl -s -X POST $SERVICE_URL/rpc \
     "id": "extract-test"
   }' | jq .
 
-sleep 3 && curl -s $SERVICE_URL/tasks/extract-test | jq .
+sleep 3 && curl -s $SERVICE_URL/tasks/extract-test \
+  -H "Authorization: Bearer $API_KEY" | jq .
 ```
 
-### 5. Stream Task Updates (SSE)
+### 5. Stream Task Updates (SSE) (Authentication Required)
 ```bash
 # Submit a task and stream updates
 TASK_ID="stream-test-$(date +%s)"
 
 # Submit task
-curl -s -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -s -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d "{
     \"method\": \"text.summarize\",
@@ -224,23 +296,25 @@ curl -s -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
   }" | jq .
 
 # Stream updates (will show real-time progress)
-curl -N https://a2a-agent-298609520814.us-central1.run.app/tasks/$TASK_ID/stream
+curl -N $SERVICE_URL/tasks/$TASK_ID/stream \
+  -H "Authorization: Bearer $API_KEY"
 ```
 
-### 6. Check Agent Discovery (A2A Protocol v0.3.0)
+### 6. Check Agent Discovery (A2A Protocol v0.3.0) (No Authentication)
 ```bash
-# Get agent capabilities
-curl -s https://a2a-agent-298609520814.us-central1.run.app/.well-known/agent-card.json | jq .
+# Get agent capabilities (no auth required)
+curl -s $SERVICE_URL/.well-known/agent-card.json | jq .
 
-# Check health
-curl -s https://a2a-agent-298609520814.us-central1.run.app/health | jq .
+# Check health (no auth required)
+curl -s $SERVICE_URL/health | jq .
 ```
 
-### 7. Performance Test
+### 7. Performance Test (Authentication Required)
 ```bash
 # Submit multiple tasks simultaneously
 for i in {1..5}; do
-  curl -s -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+  curl -s -X POST $SERVICE_URL/rpc \
+    -H "Authorization: Bearer $API_KEY" \
     -H "Content-Type: application/json" \
     -d "{
       \"method\": \"text.analyze_sentiment\",
@@ -258,7 +332,8 @@ echo "All tasks submitted"
 sleep 3
 for i in {1..5}; do
   echo "Task perf-test-$i:"
-  curl -s https://a2a-agent-298609520814.us-central1.run.app/tasks/perf-test-$i | jq '.status'
+  curl -s $SERVICE_URL/tasks/perf-test-$i \
+    -H "Authorization: Bearer $API_KEY" | jq '.status'
 done
 ```
 
@@ -269,6 +344,14 @@ Save as `test-a2a.sh`:
 #!/bin/bash
 
 BASE_URL="${1:-http://localhost:8080}"
+API_KEY="${2:-}"
+
+if [ -z "$API_KEY" ]; then
+    echo "❌ Error: API_KEY required"
+    echo "Usage: $0 <base_url> <api_key>"
+    echo "Example: $0 https://a2a-agent-298609520814.us-central1.run.app your-api-key"
+    exit 1
+fi
 
 echo "🧪 Testing A2A Agent at $BASE_URL"
 
@@ -277,20 +360,22 @@ test_method() {
     local params=$2
     local task_id=$3
     local description=$4
-    
+
     echo ""
     echo "📝 Testing: $description"
-    
+
     # Submit task
     response=$(curl -s -X POST "$BASE_URL/rpc" \
+        -H "Authorization: Bearer $API_KEY" \
         -H "Content-Type: application/json" \
         -d "{\"method\": \"$method\", \"params\": $params, \"id\": \"$task_id\"}")
-    
+
     echo "Task submitted: $task_id"
     sleep 3
-    
+
     # Get results
-    result=$(curl -s "$BASE_URL/tasks/$task_id")
+    result=$(curl -s "$BASE_URL/tasks/$task_id" \
+        -H "Authorization: Bearer $API_KEY")
     echo "$result" | jq .
 }
 
@@ -312,6 +397,12 @@ test_method "data.extract" \
 
 echo ""
 echo "✅ All tests completed!"
+```
+
+**Usage**:
+```bash
+chmod +x test-a2a.sh
+./test-a2a.sh https://a2a-agent-298609520814.us-central1.run.app your-api-key-here
 ```
 
 ## Troubleshooting
@@ -446,10 +537,16 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 - Comprehensive error handling with fallbacks
 
 ### Security
-- API keys stored in Google Secret Manager
-- Environment variable isolation in Docker
-- No credentials in code or logs
-- Automatic credential conflict resolution
+- **Bearer Token Authentication**: Multi-key support with optional expiry dates (v0.8.0)
+- **User Tracking**: Logs show which API key created each request
+- **Protected Endpoints**: `/rpc`, `/tasks/{task_id}`, `/tasks/{task_id}/stream`
+- **Public Endpoints**: `/health`, `/.well-known/agent-card.json` (discovery)
+- **Secret Manager**: Both Gemini API keys and authentication keys stored securely
+- **Environment Isolation**: No credentials in code or logs
+- **A2A v0.3.0 Compliant**: Security schemes declared in agent-card.json
+- **Graceful Fallback**: Auth disabled if API_KEYS not set (for development)
+
+See [AUTHENTICATION.md](AUTHENTICATION.md) for complete security setup guide.
 
 ### Performance
 - Async task processing with progress tracking
@@ -465,8 +562,9 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 - ✅ **v0.4**: Migrated to Gemini API
 - ✅ **v0.5**: Production Cloud Run deployment with Secret Manager
 - ✅ **v0.6**: A2A Protocol v0.3.0 compliance - agent-card.json migration
-- ✅ **v0.7**: Full A2A Protocol v0.3.0 compliance - complete schema migration (current)
-- 🔄 **Next**: Enhanced authentication and rate limiting for production
+- ✅ **v0.7**: Full A2A Protocol v0.3.0 compliance - complete schema migration
+- ✅ **v0.8**: Bearer Token authentication with multi-key support (current) - **Deployed 2025-10-11**
+- 🔄 **Next**: Rate limiting per API key and usage analytics
 
 ## Contributing
 - Fork the repository
