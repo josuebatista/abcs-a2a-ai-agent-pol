@@ -1,9 +1,9 @@
 {
   "protocolVersion": "0.3.0",
   "name": "A2A AI Agent POC",
-  "description": "Agent2Agent Protocol compliant AI agent with Gemini 2.5 Flash API capabilities for text summarization, sentiment analysis, and data extraction",
+  "description": "Agent2Agent Protocol compliant AI agent with Gemini 2.5 Flash API capabilities for text summarization, sentiment analysis, and data extraction. Requires Bearer token authentication.",
   "url": "https://a2a-agent-hs6athqpoa-uc.a.run.app",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "provider": {
     "name": "ABCS A2A Agent POC",
     "url": "https://github.com/josuebatista/abcs-a2a-ai-agent-pol"
@@ -255,11 +255,11 @@
     "bearerAuth": {
       "type": "http",
       "scheme": "bearer",
-      "bearerFormat": "JWT",
-      "description": "Bearer token authentication (optional for POC, required for production)"
+      "bearerFormat": "API Key",
+      "description": "Bearer token authentication - API key required for all requests"
     }
   },
-  "security": [],
+  "security": [{"bearerAuth": []}],
   "endpoints": {
     "rpc": "/rpc",
     "status": "/tasks/{task_id}",

@@ -3,7 +3,8 @@ A2A Protocol Compliant AI Agent
 Main FastAPI application for Google Cloud Run deployment
 """
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -118,6 +119,99 @@ if GEMINI_API_KEY:
 else:
     logger.warning("GEMINI_API_KEY not available. AI capabilities will not work.")
     GEMINI_MODEL = None
+
+# ============================================================================
+# BEARER TOKEN AUTHENTICATION SETUP
+# ============================================================================
+
+# Initialize security scheme
+security = HTTPBearer()
+
+# Load and parse API keys from environment variable
+API_KEYS: Dict[str, Dict[str, Any]] = {}
+raw_api_keys = os.getenv("API_KEYS")
+
+if raw_api_keys:
+    try:
+        # Parse JSON structure: {"key1": {"name": "User 1", "created": "...", "expires": null}, ...}
+        API_KEYS = json.loads(raw_api_keys.strip())
+        logger.info(f"✓ Loaded {len(API_KEYS)} API key(s) for authentication")
+
+        # Log key names (not the actual keys)
+        for key_token, key_info in API_KEYS.items():
+            key_name = key_info.get('name', 'Unknown')
+            key_prefix = key_token[:8] if len(key_token) >= 8 else key_token[:4]
+            expires = key_info.get('expires', 'never')
+            logger.info(f"  - Key for '{key_name}' ({key_prefix}...) expires: {expires}")
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse API_KEYS JSON: {e}")
+        logger.warning("Authentication will be DISABLED due to invalid API_KEYS format")
+        API_KEYS = {}
+else:
+    logger.warning("API_KEYS environment variable not set - authentication DISABLED")
+    logger.warning("This is a security risk for production. Set API_KEYS to enable authentication.")
+
+async def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict[str, Any]:
+    """
+    Verify Bearer token against configured API keys.
+    Returns key metadata if valid, raises HTTPException if invalid.
+    """
+    token = credentials.credentials
+
+    # Check if token exists in our API_KEYS
+    if token not in API_KEYS:
+        logger.warning(f"Authentication failed: Invalid token ({token[:8]}...)")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    key_info = API_KEYS[token]
+    key_name = key_info.get('name', 'Unknown')
+
+    # Check if key has expired
+    expires = key_info.get('expires')
+    if expires:
+        try:
+            from datetime import datetime
+            expiry_date = datetime.fromisoformat(expires.replace('Z', '+00:00'))
+            if datetime.utcnow() > expiry_date:
+                logger.warning(f"Authentication failed: Expired token for '{key_name}'")
+                raise HTTPException(
+                    status_code=401,
+                    detail="Token has expired",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+        except ValueError:
+            logger.error(f"Invalid expiry date format for key '{key_name}': {expires}")
+
+    # Log successful authentication
+    logger.info(f"✓ Authenticated request from: {key_name}")
+
+    return key_info
+
+# Optional: Dependency that only enforces auth if API_KEYS are configured
+async def verify_token_optional(credentials: Optional[HTTPAuthorizationCredentials] = Security(security)) -> Optional[Dict[str, Any]]:
+    """
+    Optional authentication - only enforces if API_KEYS are configured.
+    Use this during migration period if needed.
+    """
+    # If no API keys configured, allow unauthenticated access
+    if not API_KEYS:
+        logger.debug("No API keys configured - allowing unauthenticated access")
+        return None
+
+    # If API keys are configured, require authentication
+    if not credentials:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return await verify_token(credentials)
 
 app = FastAPI(
     title="A2A AI Agent",
@@ -236,7 +330,11 @@ async def get_agent_card_legacy():
 
 # JSON-RPC endpoint for task requests
 @app.post("/rpc")
-async def handle_rpc_request(request: TaskRequest, background_tasks: BackgroundTasks):
+async def handle_rpc_request(
+    request: TaskRequest,
+    background_tasks: BackgroundTasks,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
     # Check if Gemini is configured
     if not GEMINI_API_KEY or not GEMINI_MODEL:
         return {
@@ -257,10 +355,13 @@ async def handle_rpc_request(request: TaskRequest, background_tasks: BackgroundT
         "method": request.method,
         "params": request.params,
         "created_at": datetime.utcnow().isoformat(),
+        "created_by": auth.get('name', 'Unknown'),  # Track who created the task
         "result": None,
         "error": None,
         "progress": 0
     }
+
+    logger.info(f"Task {task_id} created by '{auth.get('name')}' - Method: {request.method}")
 
     # Start background task processing
     background_tasks.add_task(process_task, task_id)
@@ -276,7 +377,10 @@ async def handle_rpc_request(request: TaskRequest, background_tasks: BackgroundT
 
 # Task status endpoint
 @app.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
+async def get_task_status(
+    task_id: str,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
     if task_id not in tasks:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -284,7 +388,10 @@ async def get_task_status(task_id: str):
 
 # Server-Sent Events for real-time updates
 @app.get("/tasks/{task_id}/stream")
-async def stream_task_updates(task_id: str):
+async def stream_task_updates(
+    task_id: str,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
     if task_id not in tasks:
         raise HTTPException(status_code=404, detail="Task not found")
 

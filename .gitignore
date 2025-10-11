@@ -1,5 +1,8 @@
-# Environment variables
+# Environment variables and secrets
 .env
+api-keys.json
+*-keys.json
+!api-keys-example.json
 
 # Python
 __pycache__/

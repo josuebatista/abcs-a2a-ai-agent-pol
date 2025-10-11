@@ -1,0 +1,20 @@
+{
+  "your-secret-api-key-1234567890abcdef": {
+    "name": "Primary User",
+    "created": "2025-10-11",
+    "expires": null,
+    "notes": "Main access key for primary agent"
+  },
+  "another-secret-key-xyz789abcdef12345": {
+    "name": "ServiceNow Agent",
+    "created": "2025-10-11",
+    "expires": "2026-10-11",
+    "notes": "Key for ServiceNow integration - expires in 1 year"
+  },
+  "temp-key-for-testing-9876543210fedcba": {
+    "name": "Testing Account",
+    "created": "2025-10-11",
+    "expires": "2025-11-11",
+    "notes": "Temporary key for development testing - expires in 30 days"
+  }
+}

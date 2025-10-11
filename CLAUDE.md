@@ -4,35 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Production-ready proof-of-concept deployed on GCP Cloud Run with FastAPI and Gemini 2.5 Flash API.
+An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Production-ready proof-of-concept deployed on GCP Cloud Run with FastAPI and Gemini 2.5 Flash API. **Secured with Bearer Token authentication for privacy and cost protection.**
 
 ## Development Commands
 
 ```bash
-# Local development
+# Local development (with authentication)
 pip install -r requirements.txt
+export API_KEYS='{"test-key-12345":{"name":"Local Dev","created":"2025-10-11","expires":null}}'
+export GEMINI_API_KEY="YOUR_KEY"
 python main.py  # Runs on http://localhost:8080
+
+# Local development (without authentication - for testing only)
+unset API_KEYS
+python main.py  # Authentication disabled when API_KEYS not set
 
 # Docker (use port 8081 if 8080 is busy)
 docker build -t a2a-agent .
 docker run -p 8080:8080 --rm \
   -e GEMINI_API_KEY="YOUR_KEY" \
+  -e API_KEYS='{"your-key":{"name":"Docker Test","created":"2025-10-11","expires":null}}' \
   --name a2a-test \
   a2a-agent
 
-# Cloud Run deployment with Secret Manager
+# Cloud Run deployment with Secret Manager (includes authentication)
 gcloud run deploy a2a-agent \
   --source . \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --update-secrets GEMINI_API_KEY=gemini-api-key:latest \
+  --update-secrets API_KEYS=api-keys:latest,GEMINI_API_KEY=gemini-api-key:latest \
   --memory 512Mi \
   --timeout 300
 
-# Testing endpoints (see README.md for complete curl examples)
+# Testing endpoints (see AUTHENTICATION.md for complete examples)
 curl -s http://localhost:8080/health | jq .
 curl -s http://localhost:8080/.well-known/agent-card.json | jq .
+
+# Testing with authentication
+API_KEY="test-key-12345"
+curl -X POST http://localhost:8080/rpc \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"method":"text.summarize","params":{"text":"Test","max_length":20},"id":"test-1"}'
 ```
 
 ## Architecture
@@ -63,6 +77,73 @@ curl -s http://localhost:8080/.well-known/agent-card.json | jq .
 - `text.summarize`: Text summarization with configurable length
 - `text.analyze_sentiment`: Sentiment analysis with confidence scores
 - `data.extract`: Entity extraction with fallback regex parsing
+
+## Authentication System (v0.8.0+)
+
+**Multi-Key Bearer Token Authentication** protects all endpoints from unauthorized access.
+
+### Quick Setup
+
+1. **Generate API keys**:
+```bash
+# Generate a secure random key
+openssl rand -base64 32
+```
+
+2. **Create API keys JSON** (see `api-keys-example.json`):
+```json
+{
+  "your-generated-key-here": {
+    "name": "Primary User",
+    "created": "2025-10-11",
+    "expires": null,
+    "notes": "Main access key"
+  }
+}
+```
+
+3. **Store in Secret Manager**:
+```bash
+# Minify and store (IMPORTANT: use echo -n to avoid newlines!)
+echo -n '{"your-key":{"name":"User1","created":"2025-10-11","expires":null}}' | \
+  gcloud secrets create api-keys --data-file=-
+
+# Grant service account access
+PROJECT_ID=$(gcloud config get-value project)
+gcloud secrets add-iam-policy-binding api-keys \
+  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+4. **Deploy with both secrets**:
+```bash
+gcloud run deploy a2a-agent \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --update-secrets API_KEYS=api-keys:latest,GEMINI_API_KEY=gemini-api-key:latest
+```
+
+5. **Test authentication**:
+```bash
+SERVICE_URL="https://a2a-agent-298609520814.us-central1.run.app"
+API_KEY="your-key-here"
+
+curl -X POST ${SERVICE_URL}/rpc \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"method":"text.summarize","params":{"text":"Test"},"id":"1"}'
+```
+
+### Key Features
+
+- **Protected Endpoints**: `/rpc`, `/tasks/{task_id}`, `/tasks/{task_id}/stream`
+- **Public Endpoints**: `/health`, `/.well-known/agent-card.json` (no auth required)
+- **User Tracking**: Logs show which key created each task
+- **Expiry Support**: Optional expiration dates for temporary keys
+- **Graceful Fallback**: If `API_KEYS` not set, authentication is disabled (with warnings)
+
+**Complete Documentation**: See `AUTHENTICATION.md` for detailed setup, key management, and troubleshooting.
 
 ## Critical Deployment Knowledge
 
@@ -104,15 +185,22 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 
 ## Current Status
 
-**Production Deployment (v0.7.0)** ✅
+**Production Deployment (v0.8.0)** ✅ **LIVE & TESTED**
 - ✅ **Live on Cloud Run**: `https://a2a-agent-298609520814.us-central1.run.app`
+- ✅ **Bearer Token Authentication**: Multi-key auth with expiry support - **TESTED & WORKING**
 - ✅ **Full A2A v0.3.0 Compliance**: Protocol version, agent-card.json, complete schema
 - ✅ **3 AI Skills**: Text summarization, sentiment analysis, data extraction
 - ✅ **Gemini 2.5 Flash**: All capabilities powered by latest model
 - ✅ **Streaming Support**: SSE enabled for real-time updates
-- ✅ **Secret Manager**: Secure API key management
+- ✅ **Secret Manager**: Secure API key management (Gemini + API keys)
 - ✅ **Health Monitoring**: `/health` endpoint operational
 - ✅ **Discovery Ready**: A2A v0.3.0 compliant agent card at `/.well-known/agent-card.json`
+- ✅ **Usage Tracking**: Logs show which user/key created each task
+- ✅ **Privacy & Cost Protection**: All API endpoints secured with Bearer tokens
+
+**Deployment Date**: 2025-10-11
+**Secret Name**: `api-keys-abcs-test-ai-agent-001`
+**Service Account**: `298609520814-compute@developer.gserviceaccount.com`
 
 **Version History**
 - v0.1: Initial project structure
@@ -121,16 +209,18 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - v0.4: Migrated to Gemini API
 - v0.5: Production Cloud Run deployment with Secret Manager
 - v0.6: A2A v0.3.0 filename compliance (agent-card.json migration)
-- v0.7: Full A2A v0.3.0 protocol compliance - deployed to production (current)
+- v0.7: Full A2A v0.3.0 protocol compliance - deployed to production
+- v0.8: Bearer token authentication with multi-key support (current)
 
 **Next Phase Options**
 - **Primary Agent Integration**: Test with ServiceNow or Google Agent Engine
-- **Authentication**: Implement bearer token validation for production
-- **Rate Limiting**: Add request throttling and quotas
+- **Rate Limiting**: Add per-key request throttling and quotas
 - **Monitoring**: Integrate Cloud Monitoring and alerting
 - **Database**: Replace in-memory storage with Firestore for persistence
 - **Push Notifications**: Implement callback mechanism for long-running tasks
 - **State History**: Add audit trail for compliance requirements
+- **Key Management API**: Admin endpoints for CRUD operations on API keys
+- **Usage Analytics**: Per-key usage metrics and cost tracking
 
 ## AI Capabilities Architecture
 
@@ -314,9 +404,15 @@ gcloud alpha run services logs tail a2a-agent --region us-central1
 
 ## Production Considerations
 
-1. **Security**: Enable authentication in agent-card.json for production
+1. **Security**: ✅ Bearer token authentication implemented (v0.8.0)
+   - Store API keys in Secret Manager
+   - Rotate keys every 90-180 days
+   - Monitor authentication logs for suspicious activity
 2. **Persistence**: Replace in-memory task storage with Firestore/Cloud SQL
 3. **Monitoring**: Add Cloud Monitoring metrics and alerts
-4. **Rate Limiting**: Implement quotas to prevent abuse
+   - Track per-key usage patterns
+   - Alert on authentication failures
+4. **Rate Limiting**: Implement per-key quotas to prevent abuse
 5. **Error Tracking**: Integrate with Cloud Error Reporting
 6. **Scaling**: Configure auto-scaling parameters based on load testing
+7. **Key Management**: Consider admin API for key lifecycle management
