@@ -92,14 +92,25 @@ echo -n '{"your-key-here":{"name":"User1","created":"2025-10-11","expires":null}
 
 ```bash
 # Get your Cloud Run service account
-PROJECT_ID=$(gcloud config get-value project)
-SERVICE_ACCOUNT="${PROJECT_ID}@appspot.gserviceaccount.com"
+# Cloud Run uses the default Compute Engine service account with format:
+# PROJECT_NUMBER-compute@developer.gserviceaccount.com
+
+# Option 1: Get it directly from your Cloud Run service
+SERVICE_ACCOUNT=$(gcloud run services describe a2a-agent \
+  --region us-central1 \
+  --format="value(spec.template.spec.serviceAccountName)")
+
+# Option 2: If service doesn't exist yet, construct it from project number
+# PROJECT_NUMBER=$(gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)")
+# SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 # Grant access to the secret
 gcloud secrets add-iam-policy-binding api-keys \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
 ```
+
+**Important**: Do NOT use `PROJECT_ID@appspot.gserviceaccount.com` - this is a common mistake. Cloud Run uses the Compute Engine default service account with the format `PROJECT_NUMBER-compute@developer.gserviceaccount.com`.
 
 ### Step 4: Deploy with Secret
 
