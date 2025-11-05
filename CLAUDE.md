@@ -2,9 +2,31 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ IMPORTANT: A2A Protocol Compliance Status
+
+**Current Status**: Partial Compliance with Major Gaps (v0.8.0)
+
+This implementation has **significant deviations** from the official A2A Protocol v0.3.0 specification. See **[A2A-COMPLIANCE-REVIEW.md](./A2A-COMPLIANCE-REVIEW.md)** for:
+- Detailed compliance analysis
+- Critical architectural issues
+- Step-by-step migration plan
+- Priority-ordered recommendations
+
+**Key Issues**:
+1. 🔴 Uses custom RPC methods (`text.summarize`) instead of standard `message/send`
+2. 🔴 Missing Message/Part data structures required by spec
+3. 🔴 Skills misused as RPC methods instead of capability metadata
+4. 🟡 Incomplete task state lifecycle (4 of 8 required states)
+
+**Recommended Action**: Follow the migration path in A2A-COMPLIANCE-REVIEW.md to achieve full compliance (estimated 3-4 weeks).
+
+---
+
 ## Project Overview
 
-An Agent2Agent (A2A) protocol compliant secondary agent implementing Google's A2A specification for discovery and orchestration by primary agents like ServiceNow. Production-ready proof-of-concept deployed on GCP Cloud Run with FastAPI and Gemini 2.5 Flash API. **Secured with Bearer Token authentication for privacy and cost protection.**
+An Agent2Agent (A2A) protocol secondary agent implementing custom AI capabilities with Google's Gemini 2.5 Flash API. Production-ready proof-of-concept deployed on GCP Cloud Run with FastAPI. **Secured with Bearer Token authentication for privacy and cost protection.**
+
+**Note**: While functional and production-ready, the current architecture requires refactoring to fully comply with A2A Protocol v0.3.0 specifications.
 
 ## Development Commands
 
