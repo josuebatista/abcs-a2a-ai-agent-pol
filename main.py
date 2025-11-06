@@ -3,7 +3,7 @@ A2A Protocol Compliant AI Agent
 Main FastAPI application for Google Cloud Run deployment
 """
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Security
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Security, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -253,6 +253,60 @@ class TaskStatus(BaseModel):
     created_at: Optional[str] = None
     created_by: Optional[str] = None
 
+# A2A Protocol v0.3.0 Message/Part Data Structures
+class TextPart(BaseModel):
+    """Text content part of a message"""
+    type: Literal["text"] = "text"
+    text: str
+
+class FileWithUri(BaseModel):
+    """File reference by URI"""
+    uri: str
+    mimeType: str
+
+class FileWithBytes(BaseModel):
+    """File with base64-encoded content"""
+    bytes: str  # base64 encoded
+    mimeType: str
+
+class FilePart(BaseModel):
+    """File part of a message"""
+    type: Literal["file"] = "file"
+    file: Union[FileWithUri, FileWithBytes]
+
+class DataPart(BaseModel):
+    """Structured data part of a message"""
+    type: Literal["data"] = "data"
+    data: Dict[str, Any]
+
+# Union type for all part types
+Part = Union[TextPart, FilePart, DataPart]
+
+class Message(BaseModel):
+    """A2A Protocol message with role and parts"""
+    role: Literal["user", "agent"]
+    parts: List[Dict[str, Any]]  # Using Dict for flexibility in parsing
+
+class SendMessageParams(BaseModel):
+    """Parameters for message/send RPC method"""
+    message: Message
+    taskId: Optional[str] = None
+    streamingConfig: Optional[Dict[str, Any]] = None
+
+class JsonRpcRequest(BaseModel):
+    """Standard JSON-RPC 2.0 request"""
+    jsonrpc: Literal["2.0"] = "2.0"
+    method: str
+    params: Dict[str, Any]
+    id: Union[str, int]
+
+class JsonRpcResponse(BaseModel):
+    """Standard JSON-RPC 2.0 response"""
+    jsonrpc: Literal["2.0"] = "2.0"
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[Dict[str, Any]] = None
+    id: Union[str, int]
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -343,52 +397,311 @@ async def get_agent_card_legacy():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Agent card not found")
 
-# JSON-RPC endpoint for task requests
-@app.post("/rpc")
-async def handle_rpc_request(
-    request: TaskRequest,
+# ============================================================================
+# A2A Protocol v0.3.0 Core Methods
+# ============================================================================
+
+def determine_skill_from_message(text: str) -> str:
+    """
+    Determine which skill to invoke based on natural language message content.
+    Uses keyword matching - could be enhanced with LLM-based intent classification.
+    """
+    text_lower = text.lower()
+
+    # Summarization keywords
+    summarization_keywords = [
+        "summarize", "summary", "overview", "brief",
+        "condense", "key points", "main points", "tldr",
+        "give me a", "what are the"
+    ]
+    if any(keyword in text_lower for keyword in summarization_keywords):
+        return "summarization"
+
+    # Sentiment analysis keywords
+    sentiment_keywords = [
+        "sentiment", "tone", "emotion", "feeling",
+        "positive", "negative", "analyze", "opinion",
+        "how do", "what's the feeling"
+    ]
+    if any(keyword in text_lower for keyword in sentiment_keywords):
+        return "sentiment-analysis"
+
+    # Entity extraction keywords
+    extraction_keywords = [
+        "extract", "find", "identify", "entities",
+        "names", "people", "organizations", "locations",
+        "contacts", "pull out", "what organizations"
+    ]
+    if any(keyword in text_lower for keyword in extraction_keywords):
+        return "entity-extraction"
+
+    # Default to summarization if unclear
+    logger.info(f"Could not determine skill from: '{text[:50]}...', defaulting to summarization")
+    return "summarization"
+
+def extract_max_length_from_text(text: str) -> Optional[int]:
+    """Extract max_length parameter from natural language if specified"""
+    import re
+
+    patterns = [
+        r'(?:in|maximum|max|up to|under)\s+(\d+)\s+words?',
+        r'(\d+)\s+words?\s+(?:or less|maximum|max)',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            return int(match.group(1))
+
+    return None  # Use default
+
+async def handle_message_send(
+    params: Dict[str, Any],
+    auth: Dict[str, Any],
     background_tasks: BackgroundTasks,
-    auth: Dict[str, Any] = Depends(verify_token)
-):
-    # Check if Gemini is configured
-    if not GEMINI_API_KEY or not GEMINI_MODEL:
+    request_id: Union[str, int]
+) -> Dict[str, Any]:
+    """
+    Handle message/send RPC method - the main entry point for A2A protocol.
+    Accepts natural language messages and routes to appropriate skills.
+    """
+    try:
+        # Parse and validate params
+        send_params = SendMessageParams(**params)
+        message = send_params.message
+        task_id = send_params.taskId or str(uuid.uuid4())
+
+        # Check Gemini configuration
+        if not GEMINI_API_KEY or not GEMINI_MODEL:
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32603,
+                    "message": "Internal error: AI capabilities not configured"
+                },
+                "id": request_id
+            }
+
+        # Extract text content from message parts
+        text_content = ""
+        for part in message.parts:
+            if isinstance(part, dict):
+                part_type = part.get("type")
+                if part_type == "text":
+                    text_content += part.get("text", "") + "\n"
+                elif part_type == "file":
+                    # TODO: Handle file parts (download URI or decode bytes)
+                    logger.warning(f"File part handling not yet implemented")
+                elif part_type == "data":
+                    # TODO: Handle structured data parts
+                    logger.warning(f"Data part handling not yet implemented")
+
+        text_content = text_content.strip()
+
+        if not text_content:
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32602,
+                    "message": "Invalid params: No text content found in message"
+                },
+                "id": request_id
+            }
+
+        # Determine skill/intent from message
+        skill = determine_skill_from_message(text_content)
+
+        # Create task
+        tasks[task_id] = {
+            "task_id": task_id,
+            "status": TaskState.PENDING,
+            "skill": skill,
+            "message": text_content,
+            "created_at": datetime.utcnow().isoformat(),
+            "created_by": auth.get('name', 'Unknown'),
+            "result": None,
+            "error": None,
+            "progress": 0
+        }
+
+        logger.info(f"Task {task_id} created by '{auth.get('name')}' - Skill: {skill} (via message/send)")
+
+        # Start background processing
+        background_tasks.add_task(process_message_task, task_id)
+
+        return {
+            "jsonrpc": "2.0",
+            "result": {
+                "taskId": task_id,
+                "status": TaskState.PENDING
+            },
+            "id": request_id
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_message_send: {str(e)}")
         return {
             "jsonrpc": "2.0",
             "error": {
                 "code": -32603,
-                "message": "Internal error: AI capabilities not configured"
+                "message": f"Internal error: {str(e)}"
             },
-            "id": request.id
+            "id": request_id
         }
-    
-    task_id = request.id or str(uuid.uuid4())
 
-    # Initialize task
-    tasks[task_id] = {
-        "task_id": task_id,
-        "status": "pending",
-        "method": request.method,
-        "params": request.params,
-        "created_at": datetime.utcnow().isoformat(),
-        "created_by": auth.get('name', 'Unknown'),  # Track who created the task
-        "result": None,
-        "error": None,
-        "progress": 0
-    }
+async def process_message_task(task_id: str):
+    """Process message-based task by routing to appropriate skill handler"""
+    task = tasks[task_id]
 
-    logger.info(f"Task {task_id} created by '{auth.get('name')}' - Method: {request.method}")
+    try:
+        task["status"] = TaskState.RUNNING
+        task["progress"] = 10
 
-    # Start background task processing
-    background_tasks.add_task(process_task, task_id)
+        skill = task["skill"]
+        text = task["message"]
 
-    return {
-        "jsonrpc": "2.0",
-        "result": {
-            "task_id": task_id,
-            "status": "pending"
-        },
-        "id": request.id
-    }
+        # Route to existing handlers (these remain unchanged!)
+        if skill == "summarization":
+            max_length = extract_max_length_from_text(text) or 100
+            result = await handle_text_summarization(
+                {"text": text, "max_length": max_length},
+                task
+            )
+        elif skill == "sentiment-analysis":
+            result = await handle_sentiment_analysis({"text": text}, task)
+        elif skill == "entity-extraction":
+            result = await handle_data_extraction({"text": text}, task)
+        else:
+            raise ValueError(f"Unknown skill: {skill}")
+
+        # Update task with result
+        task["status"] = TaskState.COMPLETED
+        task["progress"] = 100
+        task["result"] = result
+        task["completed_at"] = datetime.utcnow().isoformat()
+
+        logger.info(f"Task {task_id} completed successfully")
+
+    except Exception as e:
+        logger.error(f"Task {task_id} failed: {str(e)}")
+        task["status"] = TaskState.FAILED
+        task["error"] = str(e)
+        task["failed_at"] = datetime.utcnow().isoformat()
+
+# ============================================================================
+# Legacy & Standard JSON-RPC Endpoint (Backwards Compatible)
+# ============================================================================
+
+@app.post("/rpc")
+async def handle_rpc_request(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    Unified JSON-RPC 2.0 endpoint supporting both:
+    - A2A Protocol v0.3.0 methods (message/send, tasks/list, tasks/cancel)
+    - Legacy custom methods (text.summarize, text.analyze_sentiment, data.extract) for backwards compatibility
+    """
+    try:
+        # Parse JSON-RPC request
+        body = await request.json()
+        method = body.get("method")
+        params = body.get("params", {})
+        request_id = body.get("id")
+
+        # Route to A2A Protocol v0.3.0 methods
+        if method == "message/send":
+            return await handle_message_send(params, auth, background_tasks, request_id)
+
+        elif method == "tasks/get":
+            # Implemented by /tasks/{task_id} endpoint but also available via RPC
+            task_id = params.get("taskId")
+            if not task_id or task_id not in tasks:
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32602, "message": "Invalid taskId"},
+                    "id": request_id
+                }
+            return {
+                "jsonrpc": "2.0",
+                "result": tasks[task_id],
+                "id": request_id
+            }
+
+        # Legacy custom methods (backwards compatibility)
+        elif method in ["text.summarize", "text.analyze_sentiment", "data.extract"]:
+            logger.warning(f"⚠️  Using deprecated method '{method}'. Consider using 'message/send' per A2A v0.3.0")
+
+            # Check if Gemini is configured
+            if not GEMINI_API_KEY or not GEMINI_MODEL:
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32603,
+                        "message": "Internal error: AI capabilities not configured"
+                    },
+                    "id": request_id
+                }
+
+            task_id = request_id or str(uuid.uuid4())
+
+            # Initialize legacy task
+            tasks[task_id] = {
+                "task_id": task_id,
+                "status": "pending",
+                "method": method,
+                "params": params,
+                "created_at": datetime.utcnow().isoformat(),
+                "created_by": auth.get('name', 'Unknown'),
+                "result": None,
+                "error": None,
+                "progress": 0
+            }
+
+            logger.info(f"Task {task_id} created by '{auth.get('name')}' - Method: {method} (LEGACY)")
+
+            # Start background task processing (legacy)
+            background_tasks.add_task(process_task, task_id)
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "task_id": task_id,
+                    "status": "pending"
+                },
+                "id": request_id
+            }
+
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32601,
+                    "message": f"Method not found: {method}"
+                },
+                "id": request_id
+            }
+
+    except json.JSONDecodeError:
+        return {
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32700,
+                "message": "Parse error: Invalid JSON"
+            },
+            "id": None
+        }
+    except Exception as e:
+        logger.error(f"RPC error: {str(e)}")
+        return {
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            },
+            "id": body.get("id") if 'body' in locals() else None
+        }
 
 # Task status endpoint
 @app.get("/tasks/{task_id}")

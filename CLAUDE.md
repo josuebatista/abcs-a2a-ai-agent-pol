@@ -4,21 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ IMPORTANT: A2A Protocol Compliance Status
 
-**Current Status**: Partial Compliance with Major Gaps (v0.8.0)
+**Current Status**: Partial Compliance - Phase 1 In Progress (v0.8.1)
 
-This implementation has **significant deviations** from the official A2A Protocol v0.3.0 specification. See **[A2A-COMPLIANCE-REVIEW.md](./A2A-COMPLIANCE-REVIEW.md)** for:
+This implementation has **significant deviations** from the official A2A Protocol v0.3.0 specification. See **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** for:
 - Detailed compliance analysis
 - Critical architectural issues
-- Step-by-step migration plan
+- Step-by-step implementation plan with code examples
 - Priority-ordered recommendations
 
-**Key Issues**:
-1. 🔴 Uses custom RPC methods (`text.summarize`) instead of standard `message/send`
-2. 🔴 Missing Message/Part data structures required by spec
-3. 🔴 Skills misused as RPC methods instead of capability metadata
-4. 🟡 Incomplete task state lifecycle (4 of 8 required states)
+**Completed (v0.8.1 - Plan A Quick Wins)**:
+1. ✅ Skills rewritten with human-friendly descriptions and examples
+2. ✅ Complete task state lifecycle (all 8 required states)
+3. ✅ Protocol metadata fields added (preferredTransport, etc.)
 
-**Recommended Action**: Follow the migration path in A2A-COMPLIANCE-REVIEW.md to achieve full compliance (estimated 3-4 weeks).
+**In Progress (Phase 1)**:
+1. 🔄 Implementing Message/Part data structures
+2. 🔄 Implementing `message/send` handler
+3. 🔄 Adding intent detection logic
+4. 🔄 Implementing `tasks/list` and `tasks/cancel`
+
+**Remaining Critical Issues**:
+1. 🔴 Uses custom RPC methods (`text.summarize`, `text.analyze_sentiment`, `data.extract`) instead of standard `message/send`
+2. 🔴 Missing Message/Part data structures required by spec
+
+**Estimated Time to Full Compliance**: 2-3 weeks (Phase 1 in progress)
 
 ---
 
@@ -207,20 +216,32 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 
 ## Current Status
 
-**Production Deployment (v0.8.0)** ✅ **LIVE & TESTED**
+**Production Deployment (v0.8.1)** ⚠️ **PARTIAL A2A COMPLIANCE**
 - ✅ **Live on Cloud Run**: `https://a2a-agent-298609520814.us-central1.run.app`
 - ✅ **Bearer Token Authentication**: Multi-key auth with expiry support - **TESTED & WORKING**
-- ✅ **Full A2A v0.3.0 Compliance**: Protocol version, agent-card.json, complete schema
+- ⚠️ **Partial A2A v0.3.0 Compliance**: ~50% compliant (see details below)
 - ✅ **3 AI Skills**: Text summarization, sentiment analysis, data extraction
 - ✅ **Gemini 2.5 Flash**: All capabilities powered by latest model
 - ✅ **Streaming Support**: SSE enabled for real-time updates
 - ✅ **Secret Manager**: Secure API key management (Gemini + API keys)
 - ✅ **Health Monitoring**: `/health` endpoint operational
 - ✅ **Discovery Ready**: A2A v0.3.0 compliant agent card at `/.well-known/agent-card.json`
+- ✅ **Complete Task States**: All 8 A2A-required states (pending, running, input-required, auth-required, completed, canceled, rejected, failed)
 - ✅ **Usage Tracking**: Logs show which user/key created each task
 - ✅ **Privacy & Cost Protection**: All API endpoints secured with Bearer tokens
 
+**Compliance Status (v0.8.1)**:
+- ✅ Agent card format: Fully compliant (human-friendly skills with examples)
+- ✅ Task states: Fully compliant (all 8 states)
+- ✅ Protocol metadata: Fully compliant (preferredTransport, etc.)
+- 🔴 RPC methods: **Non-compliant** (uses custom methods instead of `message/send`)
+- 🔴 Message structure: **Missing** (no Message/Part implementation)
+- 🔴 Intent detection: **Missing** (no natural language routing)
+
+**Overall Compliance**: ~50% (metadata correct, core protocol needs implementation)
+
 **Deployment Date**: 2025-10-11
+**Latest Update**: 2025-11-06 (v0.8.1 - Plan A Quick Wins)
 **Secret Name**: `api-keys-abcs-test-ai-agent-001`
 **Service Account**: `298609520814-compute@developer.gserviceaccount.com`
 
@@ -232,17 +253,24 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - v0.5: Production Cloud Run deployment with Secret Manager
 - v0.6: A2A v0.3.0 filename compliance (agent-card.json migration)
 - v0.7: Full A2A v0.3.0 protocol compliance - deployed to production
-- v0.8: Bearer token authentication with multi-key support (current)
+- v0.8.0: Bearer token authentication with multi-key support
+- v0.8.1: Plan A Quick Wins - Skills rewrite, complete task states (current)
 
-**Next Phase Options**
+**Current Work (Phase 1 - In Progress)**
+- 🔄 **Message/Part Data Structures**: Implementing standard A2A message format
+- 🔄 **message/send Handler**: Core protocol method for natural language messages
+- 🔄 **Intent Detection**: Route natural language to appropriate skills
+- 🔄 **tasks/list & tasks/cancel**: Required A2A methods
+
+**Next Phase Options (After Phase 1)**
+- **Phase 2 (Required)**: Complete `message/send`, `tasks/list`, `tasks/cancel`
+- **Phase 3 (Optional)**: Streaming (`message/stream`), extended card
 - **Primary Agent Integration**: Test with ServiceNow or Google Agent Engine
 - **Rate Limiting**: Add per-key request throttling and quotas
 - **Monitoring**: Integrate Cloud Monitoring and alerting
 - **Database**: Replace in-memory storage with Firestore for persistence
-- **Push Notifications**: Implement callback mechanism for long-running tasks
-- **State History**: Add audit trail for compliance requirements
-- **Key Management API**: Admin endpoints for CRUD operations on API keys
-- **Usage Analytics**: Per-key usage metrics and cost tracking
+
+See **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** for detailed roadmap.
 
 ## AI Capabilities Architecture
 
