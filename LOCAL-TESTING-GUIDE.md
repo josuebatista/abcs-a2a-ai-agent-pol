@@ -1,6 +1,6 @@
-# Local Testing Guide - A2A Agent v0.9.0
+# Local Testing Guide - A2A Agent v0.10.0
 
-This guide will help you test the Phase 1 implementation locally before deploying to Cloud Run.
+This guide will help you test the A2A Protocol implementation locally before deploying to Cloud Run.
 
 ---
 
@@ -246,6 +246,130 @@ curl -X POST http://localhost:8080/rpc \
 ```
 
 **Expected**: Should work with deprecation warning in server logs.
+
+---
+
+### Test 5: tasks/list Method (NEW in v0.10.0!)
+
+List all tasks created by your API key:
+
+```bash
+curl -X POST http://localhost:8080/rpc \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/list",
+    "params": {},
+    "id": "list-all"
+  }' | jq .
+```
+
+**Expected Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "tasks": [...],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalTasks": 5,
+      "totalPages": 1,
+      "hasNextPage": false,
+      "hasPreviousPage": false
+    },
+    "filters": {
+      "status": null,
+      "skill": null
+    }
+  },
+  "id": "list-all"
+}
+```
+
+---
+
+### Test 6: tasks/list with Pagination
+
+Get only first 2 tasks:
+
+```bash
+curl -X POST http://localhost:8080/rpc \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/list",
+    "params": {
+      "limit": 2
+    },
+    "id": "list-limited"
+  }' | jq .
+```
+
+---
+
+### Test 7: tasks/list with Filtering
+
+Get only completed tasks:
+
+```bash
+curl -X POST http://localhost:8080/rpc \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/list",
+    "params": {
+      "status": "completed"
+    },
+    "id": "list-completed"
+  }' | jq .
+```
+
+Get only summarization tasks:
+
+```bash
+curl -X POST http://localhost:8080/rpc \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tasks/list",
+    "params": {
+      "skill": "summarization"
+    },
+    "id": "list-summarization"
+  }' | jq .
+```
+
+---
+
+### Test 8: Comprehensive Test Suite
+
+Run the complete test suite for tasks/list:
+
+**Windows**:
+```cmd
+test-tasks-list.bat http://localhost:8080 "fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
+```
+
+**Linux/Mac**:
+```bash
+chmod +x test-tasks-list.sh
+./test-tasks-list.sh http://localhost:8080 "fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
+```
+
+This runs 9 comprehensive tests covering:
+- Basic pagination
+- Custom limits
+- Page navigation
+- Status filtering
+- Skill filtering
+- Combined filters
+- Error handling (invalid page/limit)
+- Empty results
 
 ---
 
