@@ -1,9 +1,11 @@
 {
   "protocolVersion": "0.3.0",
+  "preferredTransport": "JSONRPC",
+  "supportsAuthenticatedExtendedCard": false,
   "name": "A2A AI Agent POC",
   "description": "Agent2Agent Protocol compliant AI agent with Gemini 2.5 Flash API capabilities for text summarization, sentiment analysis, and data extraction. Requires Bearer token authentication.",
   "url": "https://a2a-agent-hs6athqpoa-uc.a.run.app",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "provider": {
     "name": "ABCS A2A Agent POC",
     "url": "https://github.com/josuebatista/abcs-a2a-ai-agent-pol"
@@ -22,233 +24,46 @@
   ],
   "skills": [
     {
-      "id": "text.summarize",
+      "id": "summarization",
       "name": "Text Summarization",
-      "description": "Summarizes long text content into concise summaries using Gemini 2.5 Flash",
-      "tags": ["nlp", "text-processing", "summarization", "ai"],
-      "input": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string",
-            "description": "The text to summarize",
-            "minLength": 10,
-            "maxLength": 10000
-          },
-          "max_length": {
-            "type": "integer",
-            "description": "Maximum length of summary in words",
-            "default": 100,
-            "minimum": 10,
-            "maximum": 500
-          }
-        },
-        "required": ["text"]
-      },
-      "output": {
-        "type": "object",
-        "properties": {
-          "summary": {
-            "type": "string",
-            "description": "The generated summary"
-          },
-          "original_length": {
-            "type": "integer",
-            "description": "Length of original text in characters"
-          },
-          "summary_length": {
-            "type": "integer",
-            "description": "Length of summary in characters"
-          },
-          "compression_ratio": {
-            "type": "number",
-            "description": "Ratio of summary length to original length"
-          },
-          "model_used": {
-            "type": "string",
-            "description": "AI model used for summarization"
-          }
-        }
-      }
+      "description": "I can summarize long documents, articles, reports, and any text content into concise overviews. Simply ask me to 'summarize' or 'give an overview' and optionally specify a length (e.g., 'in 50 words'). Powered by Google Gemini 2.5 Flash for high-quality natural language understanding.",
+      "tags": ["nlp", "text-processing", "summarization", "content-analysis", "ai"],
+      "examples": [
+        "Summarize this article for me",
+        "Give me a brief overview of this document in 100 words",
+        "What are the key points in this report?",
+        "Condense this text into a few sentences",
+        "TL;DR of this content",
+        "Summarize the main ideas in 50 words or less"
+      ]
     },
     {
-      "id": "text.analyze_sentiment",
+      "id": "sentiment-analysis",
       "name": "Sentiment Analysis",
-      "description": "Analyzes the sentiment of text content with confidence scores using Gemini 2.5 Flash",
-      "tags": ["nlp", "sentiment-analysis", "text-processing", "ai"],
-      "input": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string",
-            "description": "The text to analyze for sentiment",
-            "minLength": 1,
-            "maxLength": 5000
-          }
-        },
-        "required": ["text"]
-      },
-      "output": {
-        "type": "object",
-        "properties": {
-          "sentiment": {
-            "type": "string",
-            "enum": ["positive", "negative", "neutral"],
-            "description": "Overall sentiment classification"
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Confidence score for the sentiment prediction"
-          },
-          "scores": {
-            "type": "object",
-            "properties": {
-              "positive": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Positive sentiment score"
-              },
-              "negative": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Negative sentiment score"
-              },
-              "neutral": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Neutral sentiment score"
-              }
-            }
-          },
-          "model_used": {
-            "type": "string",
-            "description": "AI model used for sentiment analysis"
-          }
-        }
-      }
+      "description": "I can analyze the emotional tone and sentiment of text content, identifying whether it's positive, negative, or neutral. I provide confidence scores and detailed sentiment breakdowns to help you understand how people feel about topics, products, or services. Perfect for analyzing customer feedback, reviews, social media posts, and survey responses.",
+      "tags": ["nlp", "sentiment", "emotion", "text-analysis", "opinion-mining", "ai"],
+      "examples": [
+        "What's the sentiment of this review?",
+        "Analyze the tone of this customer feedback",
+        "Is this message positive or negative?",
+        "How do people feel about this product?",
+        "Determine the emotional tone of this text",
+        "Analyze sentiment: 'This product exceeded my expectations!'"
+      ]
     },
     {
-      "id": "data.extract",
-      "name": "Data Extraction",
-      "description": "Extracts structured entities (persons, locations, organizations, dates, events, contacts) from unstructured text using Gemini 2.5 Flash with regex fallback",
-      "tags": ["nlp", "entity-extraction", "text-processing", "ai", "ner"],
-      "input": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string",
-            "description": "The text to extract data from",
-            "minLength": 1,
-            "maxLength": 10000
-          },
-          "schema": {
-            "type": "object",
-            "description": "Optional schema to guide extraction",
-            "default": {}
-          }
-        },
-        "required": ["text"]
-      },
-      "output": {
-        "type": "object",
-        "properties": {
-          "extracted_data": {
-            "type": "object",
-            "description": "The extracted structured data with entity types",
-            "properties": {
-              "persons": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "locations": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "organizations": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "dates": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "events": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "phones": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              },
-              "emails": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {"type": "string"},
-                    "salience": {"type": "number"}
-                  }
-                }
-              }
-            }
-          },
-          "entity_count": {
-            "type": "integer",
-            "description": "Total number of entities extracted"
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Overall confidence in the extraction"
-          },
-          "model_used": {
-            "type": "string",
-            "description": "AI model used for data extraction"
-          }
-        }
-      }
+      "id": "entity-extraction",
+      "name": "Entity Extraction",
+      "description": "I can identify and extract key entities from text including people, organizations, locations, dates, events, phone numbers, and email addresses. Useful for processing documents, emails, meeting notes, and extracting structured information from unstructured text. I use advanced AI with regex fallback to ensure reliable extraction even from complex formats.",
+      "tags": ["nlp", "ner", "named-entity-recognition", "extraction", "information-extraction", "ai"],
+      "examples": [
+        "Extract all the names from this document",
+        "What organizations are mentioned here?",
+        "Find all contact details in this email",
+        "Identify people and places mentioned in this text",
+        "Pull out dates and events from this message",
+        "Extract entities: 'John Smith from Microsoft spoke in Seattle on May 15th. Contact: john@microsoft.com'"
+      ]
     }
   ],
   "securitySchemes": {

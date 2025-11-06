@@ -8,7 +8,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Literal
+from enum import Enum
 import json
 import uuid
 import asyncio
@@ -225,6 +226,18 @@ app.mount("/.well-known", StaticFiles(directory=".well-known"), name="well-known
 # In-memory task storage (for POC - use proper storage in production)
 tasks: Dict[str, Dict] = {}
 
+# A2A Protocol v0.3.0 Task States
+class TaskState(str, Enum):
+    """Complete task lifecycle states per A2A Protocol v0.3.0"""
+    PENDING = "pending"              # Awaiting processing
+    RUNNING = "running"              # Active execution
+    INPUT_REQUIRED = "input-required"  # Awaiting user/client input (human-in-the-loop)
+    AUTH_REQUIRED = "auth-required"    # Secondary credentials needed
+    COMPLETED = "completed"          # Successful terminal state
+    CANCELED = "canceled"            # User-terminated state
+    REJECTED = "rejected"            # Agent declined execution
+    FAILED = "failed"                # Error terminal state
+
 # Pydantic models for A2A protocol
 class TaskRequest(BaseModel):
     method: str
@@ -233,10 +246,12 @@ class TaskRequest(BaseModel):
 
 class TaskStatus(BaseModel):
     task_id: str
-    status: str  # pending, running, completed, failed
+    status: str  # All 8 TaskState values supported: pending, running, input-required, auth-required, completed, canceled, rejected, failed
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     progress: Optional[int] = None
+    created_at: Optional[str] = None
+    created_by: Optional[str] = None
 
 # Health check endpoint
 @app.get("/health")
