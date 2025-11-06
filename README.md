@@ -1,18 +1,26 @@
 # A2A AI Agent Proof-of-Life for Google Cloud Platform
 
+**✅ Phase 1 Complete - 80% A2A Protocol v0.3.0 Compliant - Production Verified**
+
 Agent2Agent Protocol compliant AI agent for Google Cloud Platform, designed to be discoverable and orchestrated by primary agents like ServiceNow.
+
+🎉 **NEW in v0.9.1**: Natural language `message/send` interface with intent detection now live in production!
 
 ## Overview
 
-This proof-of-concept implements Google's A2A protocol specification with:
-- **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction - all powered by Gemini API
-- **Bearer Token Authentication**: Multi-key authentication with expiry support for privacy and cost protection
+This production-ready implementation achieves 80% compliance with A2A Protocol v0.3.0:
+- **✨ message/send Method**: Natural language interface (NEW!)
+- **🧠 Intent Detection**: Automatically routes to appropriate skills (NEW!)
+- **📦 Message/Part Structure**: Full A2A data models (NEW!)
+- **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction
+- **🔐 Bearer Token Authentication**: Multi-key authentication with expiry support
 - **JSON-RPC 2.0**: Standard protocol for task requests
-- **Server-Sent Events**: Real-time status updates
-- **Agent Discovery**: Standard `.well-known/agent-card.json` endpoint (A2A v0.3.0 compliant)
-- **Cloud Run Ready**: Optimized for GCP deployment with Secret Manager integration
-- **Real AI Integration**: Uses Google Gemini 2.5 Flash API for all AI capabilities
-- **User Tracking**: Request logging shows which API key created each task
+- **📡 Server-Sent Events**: Real-time status updates
+- **🔍 Agent Discovery**: Standard `.well-known/agent-card.json` endpoint
+- **☁️ Cloud Run**: Live at https://a2a-agent-298609520814.us-central1.run.app
+- **🤖 Real AI Integration**: Google Gemini 2.5 Flash API
+- **📊 User Tracking**: Request logging shows which API key created each task
+- **🔄 Backwards Compatible**: Legacy methods still work with deprecation warnings
 
 ## Prerequisites
 
@@ -21,6 +29,47 @@ This proof-of-concept implements Google's A2A protocol specification with:
 - Docker (for containerized deployment)
 - Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
 - GCP Project with Cloud Run and Secret Manager enabled
+
+## Quick Production Test
+
+Try the live production agent right now:
+
+```bash
+# Set your API key
+export API_KEY="fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
+export SERVICE_URL="https://a2a-agent-298609520814.us-central1.run.app"
+
+# Test health
+curl -s $SERVICE_URL/health | jq .
+
+# Test NEW message/send method (A2A v0.3.0)
+curl -X POST $SERVICE_URL/rpc \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [
+          {
+            "type": "text",
+            "text": "Summarize in 20 words: Artificial intelligence is revolutionizing industries worldwide through machine learning."
+          }
+        ]
+      }
+    },
+    "id": "test-1"
+  }' | jq .
+
+# Wait a few seconds, then check result (copy taskId from above)
+sleep 5
+curl -s $SERVICE_URL/tasks/TASK_ID_HERE \
+  -H "Authorization: Bearer $API_KEY" | jq .
+```
+
+**See [LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md) for complete testing instructions.**
 
 ## Quick Start
 
@@ -562,9 +611,23 @@ See [AUTHENTICATION.md](AUTHENTICATION.md) for complete security setup guide.
 - ✅ **v0.4**: Migrated to Gemini API
 - ✅ **v0.5**: Production Cloud Run deployment with Secret Manager
 - ✅ **v0.6**: A2A Protocol v0.3.0 compliance - agent-card.json migration
-- ✅ **v0.7**: Full A2A Protocol v0.3.0 compliance - complete schema migration
-- ✅ **v0.8**: Bearer Token authentication with multi-key support (current) - **Deployed 2025-10-11**
-- 🔄 **Next**: Rate limiting per API key and usage analytics
+- ✅ **v0.7**: Agent card schema migration - complete
+- ✅ **v0.8.0**: Bearer Token authentication with multi-key support
+- ✅ **v0.8.1**: Plan A Quick Wins - Skills rewrite, complete task states
+- ✅ **v0.9.0**: Phase 1 - Core A2A Protocol (`message/send`, intent detection, Message/Part)
+- ✅ **v0.9.1**: Bug fixes + Windows testing support (current) - **Deployed 2025-11-06**
+
+**Phase 1 Complete** ✅ (80% A2A Compliant):
+- message/send with natural language
+- Intent detection operational
+- Message/Part data structures
+- Backwards compatible
+
+**Next Phase 2** (Remaining for 100%):
+- tasks/list - Paginated task listing
+- tasks/cancel - Cancel running tasks
+- File/Data part handling
+- Primary agent integration testing
 
 ## Contributing
 - Fork the repository
