@@ -1,0 +1,9 @@
+{
+  "jsonrpc": "2.0",
+  "method": "tasks/list",
+  "params": {
+    "page": 1,
+    "limit": 10
+  },
+  "id": "taskslist-test"
+}

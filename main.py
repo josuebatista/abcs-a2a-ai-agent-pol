@@ -589,6 +589,121 @@ async def process_message_task(task_id: str):
         task["failed_at"] = datetime.utcnow().isoformat()
 
 # ============================================================================
+# A2A Protocol v0.3.0: tasks/list Method
+# ============================================================================
+
+async def handle_tasks_list(
+    params: Dict[str, Any],
+    auth: Dict[str, Any],
+    request_id: Union[str, int]
+) -> Dict[str, Any]:
+    """
+    Handle tasks/list RPC method - return paginated tasks for authenticated user.
+
+    A2A Protocol v0.3.0 Specification:
+    - Returns paginated list of tasks owned by the authenticated user
+    - Supports filtering by status, skill
+    - Default: 20 tasks per page, max 100
+    """
+    try:
+        # Parse pagination parameters
+        page = params.get("page", 1)
+        limit = params.get("limit", 20)
+        status_filter = params.get("status")  # Optional: "pending", "running", "completed", "failed", etc.
+        skill_filter = params.get("skill")     # Optional: "summarization", "sentiment-analysis", "entity-extraction"
+
+        # Validate pagination parameters
+        if page < 1:
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32602,
+                    "message": "Invalid params: page must be >= 1"
+                },
+                "id": request_id
+            }
+
+        if limit < 1 or limit > 100:
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32602,
+                    "message": "Invalid params: limit must be between 1 and 100"
+                },
+                "id": request_id
+            }
+
+        # Get user's API key name for filtering
+        user_name = auth.get('name', 'Unknown')
+
+        # Filter tasks by user (only show tasks created by this user)
+        user_tasks = [
+            task for task in tasks.values()
+            if task.get("created_by") == user_name
+        ]
+
+        # Apply status filter if provided
+        if status_filter:
+            user_tasks = [
+                task for task in user_tasks
+                if task.get("status") == status_filter
+            ]
+
+        # Apply skill filter if provided
+        if skill_filter:
+            user_tasks = [
+                task for task in user_tasks
+                if task.get("skill") == skill_filter or task.get("method") == skill_filter
+            ]
+
+        # Sort by creation time (newest first)
+        user_tasks.sort(
+            key=lambda t: t.get("created_at", ""),
+            reverse=True
+        )
+
+        # Calculate pagination
+        total_tasks = len(user_tasks)
+        total_pages = (total_tasks + limit - 1) // limit  # Ceiling division
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+
+        # Get paginated slice
+        paginated_tasks = user_tasks[start_idx:end_idx]
+
+        # Build response
+        return {
+            "jsonrpc": "2.0",
+            "result": {
+                "tasks": paginated_tasks,
+                "pagination": {
+                    "page": page,
+                    "limit": limit,
+                    "totalTasks": total_tasks,
+                    "totalPages": total_pages,
+                    "hasNextPage": page < total_pages,
+                    "hasPreviousPage": page > 1
+                },
+                "filters": {
+                    "status": status_filter,
+                    "skill": skill_filter
+                }
+            },
+            "id": request_id
+        }
+
+    except Exception as e:
+        logger.error(f"Error in handle_tasks_list: {str(e)}")
+        return {
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32603,
+                "message": f"Internal error: {str(e)}"
+            },
+            "id": request_id
+        }
+
+# ============================================================================
 # Legacy & Standard JSON-RPC Endpoint (Backwards Compatible)
 # ============================================================================
 
@@ -628,6 +743,10 @@ async def handle_rpc_request(
                 "result": tasks[task_id],
                 "id": request_id
             }
+
+        elif method == "tasks/list":
+            # A2A Protocol v0.3.0: List paginated tasks for authenticated user
+            return await handle_tasks_list(params, auth, request_id)
 
         # Legacy custom methods (backwards compatibility)
         elif method in ["text.summarize", "text.analyze_sentiment", "data.extract"]:

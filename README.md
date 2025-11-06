@@ -1,17 +1,18 @@
 # A2A AI Agent Proof-of-Life for Google Cloud Platform
 
-**✅ Phase 1 Complete - 80% A2A Protocol v0.3.0 Compliant - Production Verified**
+**✅ Phase 2.1 Complete - 90% A2A Protocol v0.3.0 Compliant - Production Ready**
 
 Agent2Agent Protocol compliant AI agent for Google Cloud Platform, designed to be discoverable and orchestrated by primary agents like ServiceNow.
 
-🎉 **NEW in v0.9.1**: Natural language `message/send` interface with intent detection now live in production!
+🎉 **NEW in v0.10.0**: `tasks/list` method with pagination and filtering!
 
 ## Overview
 
-This production-ready implementation achieves 80% compliance with A2A Protocol v0.3.0:
-- **✨ message/send Method**: Natural language interface (NEW!)
-- **🧠 Intent Detection**: Automatically routes to appropriate skills (NEW!)
-- **📦 Message/Part Structure**: Full A2A data models (NEW!)
+This production-ready implementation achieves 90% compliance with A2A Protocol v0.3.0:
+- **📋 tasks/list Method**: Paginated task listing with status/skill filters (NEW!)
+- **✨ message/send Method**: Natural language interface
+- **🧠 Intent Detection**: Automatically routes to appropriate skills
+- **📦 Message/Part Structure**: Full A2A data models
 - **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction
 - **🔐 Bearer Token Authentication**: Multi-key authentication with expiry support
 - **JSON-RPC 2.0**: Standard protocol for task requests
