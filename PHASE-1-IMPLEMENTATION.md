@@ -639,11 +639,12 @@ gcloud run deploy a2a-agent --source . --region us-central1
 
 ## References
 
-- [A2A Protocol v0.3.0 Specification](https://a2a-protocol.org)
-- [FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)
-- [PLAN-A-COMPLETED.md](./PLAN-A-COMPLETED.md)
-- [CLAUDE.md](./CLAUDE.md)
-- [LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)
+- **[A2A Protocol v0.3.0 Specification](https://a2a-protocol.org)**
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Understanding async request/response ⭐
+- **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)**
+- **[PLAN-A-COMPLETED.md](./PLAN-A-COMPLETED.md)**
+- **[CLAUDE.md](./CLAUDE.md)**
+- **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)**
 
 ---
 

@@ -528,6 +528,38 @@ echo "All tasks submitted"
 
 ---
 
+## Additional Resources
+
+### Understanding Async Patterns
+
+If you're wondering **"How do I see the response?"** or **"Why is my result undefined?"**, read this:
+
+**[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete guide covering:
+- Why A2A uses async patterns
+- Pattern 1: message/send + Polling
+- Pattern 2: message/send + SSE Streaming
+- Pattern 3: message/send + tasks/list
+- JavaScript, Python, Bash examples
+- Error handling and best practices
+
+**Quick Summary**: `message/send` returns immediately with a `taskId`. You must make a second request to get the actual result:
+```bash
+# Step 1: Submit (get taskId)
+curl POST /rpc -d '{"method":"message/send",...}'
+
+# Step 2: Get result (use the taskId)
+curl GET /tasks/YOUR_TASK_ID
+```
+
+### More Documentation
+
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - 13 ready-to-use JSON payloads
+- **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)** - message/send technical details
+- **[PHASE-2.1-IMPLEMENTATION.md](./PHASE-2.1-IMPLEMENTATION.md)** - tasks/list technical details
+- **[send-and-wait.sh](./send-and-wait.sh)** - Helper script that does async flow automatically
+
+---
+
 ## Server Logs to Monitor
 
 When running locally, watch for these log entries:

@@ -70,7 +70,10 @@ curl -s $SERVICE_URL/tasks/TASK_ID_HERE \
   -H "Authorization: Bearer $API_KEY" | jq .
 ```
 
-**See [LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md) for complete testing instructions.**
+**📚 Documentation**:
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete guide to async patterns (NEW!)
+- **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** - Complete testing instructions
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON payload examples
 
 ## Quick Start
 
@@ -616,19 +619,55 @@ See [AUTHENTICATION.md](AUTHENTICATION.md) for complete security setup guide.
 - ✅ **v0.8.0**: Bearer Token authentication with multi-key support
 - ✅ **v0.8.1**: Plan A Quick Wins - Skills rewrite, complete task states
 - ✅ **v0.9.0**: Phase 1 - Core A2A Protocol (`message/send`, intent detection, Message/Part)
-- ✅ **v0.9.1**: Bug fixes + Windows testing support (current) - **Deployed 2025-11-06**
+- ✅ **v0.9.1**: Bug fixes + Windows testing support
+- ✅ **v0.9.2**: Documentation updates for Phase 1
+- ✅ **v0.10.0**: Phase 2.1 - `tasks/list` with pagination and filtering (current) - **Deployed 2025-11-06**
+- ✅ **v0.10.1**: Documentation for async patterns and tasks/list
 
-**Phase 1 Complete** ✅ (80% A2A Compliant):
+**Phase 1 Complete** ✅ (v0.9.1):
 - message/send with natural language
 - Intent detection operational
 - Message/Part data structures
 - Backwards compatible
 
-**Next Phase 2** (Remaining for 100%):
-- tasks/list - Paginated task listing
-- tasks/cancel - Cancel running tasks
-- File/Data part handling
+**Phase 2.1 Complete** ✅ (v0.10.0) - 90% A2A Compliant:
+- tasks/list with pagination (page, limit)
+- Filtering by status and skill
+- Per-user task isolation
+- Comprehensive test suite
+
+**Next Phase 2.2** (Remaining for 95%):
+- tasks/cancel - Cancel running tasks (Priority: High)
+- File/Data part handling (Priority: Medium)
 - Primary agent integration testing
+
+## Documentation
+
+### Getting Started
+- **[README.md](./README.md)** - This file (overview and quick start)
+- **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** - Complete local testing guide with examples
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Understanding async request/response patterns ⭐ NEW!
+
+### Implementation Details
+- **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)** - message/send implementation details
+- **[PHASE-2.1-IMPLEMENTATION.md](./PHASE-2.1-IMPLEMENTATION.md)** - tasks/list implementation details
+- **[PLAN-A-COMPLETED.md](./PLAN-A-COMPLETED.md)** - Skills rewrite and task states
+
+### Compliance & Assessment
+- **[A2A-COMPLIANCE-REVIEW.md](./A2A-COMPLIANCE-REVIEW.md)** - Detailed compliance analysis
+- **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** - Complete roadmap to 100%
+
+### Security & Configuration
+- **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Bearer token authentication setup
+- **[CLAUDE.md](./CLAUDE.md)** - Project overview and development guide
+
+### Testing
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON payload examples
+- **Test Scripts**:
+  - `test-message-send.bat/.sh` - Test message/send method
+  - `test-tasks-list.bat/.sh` - Test tasks/list method
+  - `send-and-wait.bat/.sh` - Helper script for async flow
+  - `quick-test.bat` - Quick smoke test
 
 ## Contributing
 - Fork the repository

@@ -1,0 +1,207 @@
+{
+  "description": "JSON payload examples for A2A Agent v0.10.0",
+  "base_url": "https://a2a-agent-298609520814.us-central1.run.app",
+  "local_url": "http://localhost:8080",
+  "auth_header": "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=",
+
+  "examples": {
+
+    "1_message_send_summarization": {
+      "description": "Summarize text using natural language",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "message/send",
+        "params": {
+          "message": {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "Summarize this article in 50 words: Artificial intelligence is transforming industries worldwide. Machine learning models are becoming increasingly sophisticated, enabling new applications in healthcare, finance, and education."
+              }
+            ]
+          }
+        },
+        "id": "summarize-test"
+      }
+    },
+
+    "2_message_send_sentiment": {
+      "description": "Analyze sentiment of text",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "message/send",
+        "params": {
+          "message": {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "What is the sentiment of this review: This product is absolutely amazing! I love it!"
+              }
+            ]
+          }
+        },
+        "id": "sentiment-test"
+      }
+    },
+
+    "3_message_send_entity_extraction": {
+      "description": "Extract entities from text",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "message/send",
+        "params": {
+          "message": {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "Extract entities: Microsoft CEO Satya Nadella spoke in Seattle on January 15th. Contact: info@microsoft.com"
+              }
+            ]
+          }
+        },
+        "id": "extract-test"
+      }
+    },
+
+    "4_tasks_list_basic": {
+      "description": "List all tasks with default pagination (20 per page)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {},
+        "id": "list-all"
+      }
+    },
+
+    "5_tasks_list_with_limit": {
+      "description": "List tasks with custom limit",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {
+          "limit": 5
+        },
+        "id": "list-limited"
+      }
+    },
+
+    "6_tasks_list_with_pagination": {
+      "description": "Get specific page of results",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {
+          "page": 2,
+          "limit": 10
+        },
+        "id": "list-page2"
+      }
+    },
+
+    "7_tasks_list_filter_by_status": {
+      "description": "Filter tasks by status (completed, pending, running, failed)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {
+          "status": "completed"
+        },
+        "id": "list-completed"
+      }
+    },
+
+    "8_tasks_list_filter_by_skill": {
+      "description": "Filter tasks by skill (summarization, sentiment-analysis, entity-extraction)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {
+          "skill": "summarization"
+        },
+        "id": "list-summarization"
+      }
+    },
+
+    "9_tasks_list_combined_filters": {
+      "description": "Combine multiple filters",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/list",
+        "params": {
+          "status": "completed",
+          "skill": "sentiment-analysis",
+          "limit": 10
+        },
+        "id": "list-filtered"
+      }
+    },
+
+    "10_tasks_get": {
+      "description": "Get specific task by ID",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "tasks/get",
+        "params": {
+          "taskId": "your-task-id-here"
+        },
+        "id": "get-task"
+      }
+    },
+
+    "11_legacy_text_summarize": {
+      "description": "Legacy method (deprecated but still works)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "text.summarize",
+        "params": {
+          "text": "Your text here",
+          "max_length": 50
+        },
+        "id": "legacy-summarize"
+      }
+    },
+
+    "12_legacy_sentiment_analyze": {
+      "description": "Legacy sentiment analysis (deprecated)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "text.analyze_sentiment",
+        "params": {
+          "text": "This is amazing!"
+        },
+        "id": "legacy-sentiment"
+      }
+    },
+
+    "13_legacy_data_extract": {
+      "description": "Legacy entity extraction (deprecated)",
+      "payload": {
+        "jsonrpc": "2.0",
+        "method": "data.extract",
+        "params": {
+          "text": "Microsoft CEO in Seattle"
+        },
+        "id": "legacy-extract"
+      }
+    }
+  },
+
+  "usage_examples": {
+    "curl_local": "curl -X POST http://localhost:8080/rpc -H \"Authorization: Bearer YOUR_KEY\" -H \"Content-Type: application/json\" -d @test-payloads-examples.json",
+    "curl_production": "curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc -H \"Authorization: Bearer YOUR_KEY\" -H \"Content-Type: application/json\" -d '{...payload...}'",
+    "postman": "Import this file into Postman and use the examples directly",
+    "windows_powershell": "Invoke-RestMethod -Uri $URL -Method Post -Headers @{\"Authorization\"=\"Bearer $KEY\"; \"Content-Type\"=\"application/json\"} -Body (Get-Content test-payloads-examples.json)"
+  },
+
+  "notes": [
+    "Replace 'your-task-id-here' with actual task ID from previous requests",
+    "All A2A methods (message/send, tasks/list, tasks/get) require authentication",
+    "Legacy methods are deprecated - use message/send for new implementations",
+    "Default pagination: 20 tasks per page, max 100",
+    "Valid statuses: pending, running, completed, failed, canceled, input-required, auth-required, rejected",
+    "Valid skills: summarization, sentiment-analysis, entity-extraction"
+  ]
+}

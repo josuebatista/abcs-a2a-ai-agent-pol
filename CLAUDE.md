@@ -333,9 +333,13 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - 🔄 **Rate Limiting**: Add per-key request throttling and quotas
 - 🔄 **Monitoring**: Integrate Cloud Monitoring and alerting
 
-See **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** for detailed roadmap.
-See **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)** for Phase 1 details.
-See **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** for testing instructions.
+**Documentation**:
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete async patterns guide ⭐ NEW!
+- **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)** - Phase 1 implementation details
+- **[PHASE-2.1-IMPLEMENTATION.md](./PHASE-2.1-IMPLEMENTATION.md)** - tasks/list implementation ⭐ NEW!
+- **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** - Complete testing guide
+- **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** - Roadmap to 100%
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON examples ⭐ NEW!
 
 ## AI Capabilities Architecture
 

@@ -421,11 +421,13 @@ When migrating to persistent storage (Firestore/Cloud SQL):
 
 ## References
 
-- [A2A Protocol v0.3.0 Specification](https://a2a-protocol.org)
-- [A2A-COMPLIANCE-REVIEW.md](./A2A-COMPLIANCE-REVIEW.md)
-- [PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)
-- [CLAUDE.md](./CLAUDE.md)
-- [LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)
+- **[A2A Protocol v0.3.0 Specification](https://a2a-protocol.org)**
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete async patterns guide ⭐
+- **[A2A-COMPLIANCE-REVIEW.md](./A2A-COMPLIANCE-REVIEW.md)**
+- **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)**
+- **[CLAUDE.md](./CLAUDE.md)**
+- **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)**
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON examples ⭐
 
 ---
 
