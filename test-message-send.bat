@@ -26,7 +26,7 @@ set FAIL=0
 
 echo === Test 1: message/send - Summarization Intent ===
 echo Testing: Summarization via natural language...
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize this text: AI is transforming industries worldwide. Machine learning models are becoming more sophisticated every day.\"}]}},\"id\":\"test-1\"}" > temp_response.json
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize this text: AI is transforming industries worldwide. Machine learning models are becoming more sophisticated every day.\"}]}},\"id\":\"test-1\"}" > temp_response.json
 type temp_response.json
 echo.
 
@@ -43,7 +43,7 @@ echo.
 
 echo === Test 2: message/send - Sentiment Analysis Intent ===
 echo Testing: Sentiment analysis via natural language...
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"What's the sentiment of this review: This product is absolutely fantastic! I love it!\"}]}},\"id\":\"test-2\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"What's the sentiment of this review: This product is absolutely fantastic! I love it!\"}]}},\"id\":\"test-2\"}"
 echo.
 
 timeout /t 3 /nobreak >nul
@@ -53,7 +53,7 @@ echo.
 
 echo === Test 3: message/send - Entity Extraction Intent ===
 echo Testing: Entity extraction via natural language...
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Extract entities: Microsoft CEO Satya Nadella spoke in Seattle on January 15th. Contact: info@microsoft.com\"}]}},\"id\":\"test-3\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Extract entities: Microsoft CEO Satya Nadella spoke in Seattle on January 15th. Contact: info@microsoft.com\"}]}},\"id\":\"test-3\"}"
 echo.
 
 timeout /t 3 /nobreak >nul
@@ -63,7 +63,7 @@ echo.
 
 echo === Test 4: Legacy Method (Backwards Compatibility) ===
 echo Testing: Legacy text.summarize...
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"text.summarize\",\"params\":{\"text\":\"Test text\",\"max_length\":20},\"id\":\"legacy-test\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"text.summarize\",\"params\":{\"text\":\"Test text\",\"max_length\":20},\"id\":\"legacy-test\"}"
 echo.
 echo.
 

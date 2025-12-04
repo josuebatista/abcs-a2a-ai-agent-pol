@@ -704,20 +704,33 @@ async def handle_tasks_list(
         }
 
 # ============================================================================
-# Legacy & Standard JSON-RPC Endpoint (Backwards Compatible)
+# JSON-RPC 2.0 Processing Logic (Shared by Root and Legacy Endpoints)
 # ============================================================================
 
-@app.post("/rpc")
-async def handle_rpc_request(
+async def _process_rpc_request(
     request: Request,
     background_tasks: BackgroundTasks,
-    auth: Dict[str, Any] = Depends(verify_token)
-):
+    auth: Dict[str, Any]
+) -> Dict[str, Any]:
     """
-    Unified JSON-RPC 2.0 endpoint supporting both:
-    - A2A Protocol v0.3.0 methods (message/send, tasks/list, tasks/cancel)
-    - Legacy custom methods (text.summarize, text.analyze_sentiment, data.extract) for backwards compatibility
+    Core RPC request processing logic shared by both endpoints.
+
+    Supports:
+    - A2A Protocol v0.3.0 methods (message/send, tasks/list, tasks/get)
+    - Legacy custom methods (text.summarize, text.analyze_sentiment, data.extract)
+
+    Args:
+        request: FastAPI Request object
+        background_tasks: FastAPI BackgroundTasks for async processing
+        auth: Authentication dictionary from verify_token
+
+    Returns:
+        JSON-RPC 2.0 response dictionary
     """
+    # Log endpoint usage for monitoring
+    endpoint_path = request.url.path
+    logger.info(f"RPC request via {endpoint_path} from '{auth.get('name', 'Unknown')}'")
+
     try:
         # Parse JSON-RPC request
         body = await request.json()
@@ -821,6 +834,47 @@ async def handle_rpc_request(
             },
             "id": body.get("id") if 'body' in locals() else None
         }
+
+# ============================================================================
+# JSON-RPC 2.0 Endpoints (Root + Legacy for Backwards Compatibility)
+# ============================================================================
+
+@app.post("/")
+async def handle_rpc_request_root(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    Primary JSON-RPC 2.0 endpoint at root path (A2A Protocol v0.3.0 standard).
+
+    This is the primary endpoint for A2A Protocol compliance and ServiceNow integration.
+
+    Supports:
+    - A2A Protocol v0.3.0 methods: message/send, tasks/list, tasks/get
+    - Legacy methods: text.summarize, text.analyze_sentiment, data.extract
+
+    See: https://agent2agent.ai/protocol
+    """
+    return await _process_rpc_request(request, background_tasks, auth)
+
+@app.post("/rpc")
+async def handle_rpc_request_legacy(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    auth: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    Legacy JSON-RPC 2.0 endpoint (backwards compatibility only).
+
+    ⚠️ DEPRECATED: Use root endpoint / for new integrations.
+    This endpoint is maintained for backwards compatibility with existing clients.
+
+    Supports:
+    - A2A Protocol v0.3.0 methods: message/send, tasks/list, tasks/get
+    - Legacy methods: text.summarize, text.analyze_sentiment, data.extract
+    """
+    return await _process_rpc_request(request, background_tasks, auth)
 
 # Task status endpoint
 @app.get("/tasks/{task_id}")

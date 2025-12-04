@@ -44,7 +44,8 @@ export SERVICE_URL="https://a2a-agent-298609520814.us-central1.run.app"
 curl -s $SERVICE_URL/health | jq .
 
 # Test NEW message/send method (A2A v0.3.0)
-curl -X POST $SERVICE_URL/rpc \
+# Note: Using root endpoint / (legacy /rpc still supported)
+curl -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -262,7 +263,7 @@ curl -s $SERVICE_URL/.well-known/agent-card.json | jq .
 ### 2. Text Summarization (Authentication Required)
 ```bash
 # Submit summarization task
-curl -s -X POST $SERVICE_URL/rpc \
+curl -s -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -282,7 +283,7 @@ sleep 3 && curl -s $SERVICE_URL/tasks/summary-test \
 ### 3. Sentiment Analysis (Authentication Required)
 ```bash
 # Positive sentiment test
-curl -s -X POST $SERVICE_URL/rpc \
+curl -s -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -297,7 +298,7 @@ sleep 3 && curl -s $SERVICE_URL/tasks/positive-test \
   -H "Authorization: Bearer $API_KEY" | jq .
 
 # Negative sentiment test
-curl -s -X POST $SERVICE_URL/rpc \
+curl -s -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -315,7 +316,7 @@ sleep 3 && curl -s $SERVICE_URL/tasks/negative-test \
 ### 4. Data Extraction (Authentication Required)
 ```bash
 # Extract entities
-curl -s -X POST $SERVICE_URL/rpc \
+curl -s -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -336,7 +337,7 @@ sleep 3 && curl -s $SERVICE_URL/tasks/extract-test \
 TASK_ID="stream-test-$(date +%s)"
 
 # Submit task
-curl -s -X POST $SERVICE_URL/rpc \
+curl -s -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d "{
@@ -366,7 +367,7 @@ curl -s $SERVICE_URL/health | jq .
 ```bash
 # Submit multiple tasks simultaneously
 for i in {1..5}; do
-  curl -s -X POST $SERVICE_URL/rpc \
+  curl -s -X POST $SERVICE_URL/ \
     -H "Authorization: Bearer $API_KEY" \
     -H "Content-Type: application/json" \
     -d "{
@@ -418,7 +419,7 @@ test_method() {
     echo "📝 Testing: $description"
 
     # Submit task
-    response=$(curl -s -X POST "$BASE_URL/rpc" \
+    response=$(curl -s -X POST "$BASE_URL/" \
         -H "Authorization: Bearer $API_KEY" \
         -H "Content-Type: application/json" \
         -d "{\"method\": \"$method\", \"params\": $params, \"id\": \"$task_id\"}")

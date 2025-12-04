@@ -1,5 +1,6 @@
 @echo off
 REM Quick manual test for A2A Agent
+REM Note: Using root endpoint / (legacy /rpc still supported)
 
 set "API_KEY=fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
 
@@ -19,7 +20,7 @@ echo.
 echo.
 
 echo [3/4] Testing message/send (Summarization)...
-curl -s -X POST http://localhost:8080/rpc -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize in 20 words: Artificial intelligence is transforming industries worldwide. Machine learning models are becoming increasingly sophisticated.\"}]}},\"id\":\"quick-test\"}"
+curl -s -X POST http://localhost:8080/ -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize in 20 words: Artificial intelligence is transforming industries worldwide. Machine learning models are becoming increasingly sophisticated.\"}]}},\"id\":\"quick-test\"}"
 echo.
 echo.
 echo Waiting 5 seconds for processing...

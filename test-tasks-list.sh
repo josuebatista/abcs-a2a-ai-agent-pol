@@ -1,6 +1,7 @@
 #!/bin/bash
 # Test script for tasks/list method (Linux/Mac)
 # Tests pagination, filtering, and error handling
+# Note: Using root endpoint / (legacy /rpc still supported)
 
 BASE_URL="${1:-http://localhost:8080}"
 API_KEY="$2"
@@ -23,7 +24,7 @@ echo "[Setup] Creating test tasks..."
 echo
 
 # Task 1: Summarization
-curl -s -X POST "$BASE_URL/rpc" \
+curl -s -X POST "$BASE_URL/" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"message/send","params":{"message":{"role":"user","parts":[{"type":"text","text":"Summarize: Test 1"}]}},"id":"setup-1"}' > /dev/null

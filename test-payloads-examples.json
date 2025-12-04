@@ -1,7 +1,8 @@
 {
-  "description": "JSON payload examples for A2A Agent v0.10.0",
+  "description": "JSON payload examples for A2A Agent v0.10.2",
   "base_url": "https://a2a-agent-298609520814.us-central1.run.app",
   "local_url": "http://localhost:8080",
+  "note": "Send to root endpoint / (or legacy /rpc for backwards compatibility)",
   "auth_header": "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=",
 
   "examples": {

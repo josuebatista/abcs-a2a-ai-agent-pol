@@ -26,15 +26,15 @@ echo [Setup] Creating test tasks...
 echo.
 
 REM Task 1: Summarization
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize: Test 1\"}]}},\"id\":\"setup-1\"}" > nul
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Summarize: Test 1\"}]}},\"id\":\"setup-1\"}" > nul
 echo Created task 1 (summarization)
 
 REM Task 2: Sentiment
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Sentiment: Test 2\"}]}},\"id\":\"setup-2\"}" > nul
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Sentiment: Test 2\"}]}},\"id\":\"setup-2\"}" > nul
 echo Created task 2 (sentiment-analysis)
 
 REM Task 3: Entity extraction
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Extract entities: Test 3\"}]}},\"id\":\"setup-3\"}" > nul
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"Extract entities: Test 3\"}]}},\"id\":\"setup-3\"}" > nul
 echo Created task 3 (entity-extraction)
 
 echo.
@@ -44,53 +44,53 @@ echo.
 
 echo === Test 1: Basic tasks/list (no params) ===
 echo Should return first 20 tasks (default pagination)
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{},\"id\":\"test-1\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{},\"id\":\"test-1\"}"
 echo.
 echo.
 
 echo === Test 2: tasks/list with custom limit ===
 echo Should return first 2 tasks only
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"limit\":2},\"id\":\"test-2\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"limit\":2},\"id\":\"test-2\"}"
 echo.
 echo.
 
 echo === Test 3: tasks/list with pagination (page 2) ===
 echo Should return next page with limit=1
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"page\":2,\"limit\":1},\"id\":\"test-3\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"page\":2,\"limit\":1},\"id\":\"test-3\"}"
 echo.
 echo.
 
 echo === Test 4: tasks/list filtered by status=completed ===
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"completed\"},\"id\":\"test-4\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"completed\"},\"id\":\"test-4\"}"
 echo.
 echo.
 
 echo === Test 5: tasks/list filtered by skill=summarization ===
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"skill\":\"summarization\"},\"id\":\"test-5\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"skill\":\"summarization\"},\"id\":\"test-5\"}"
 echo.
 echo.
 
 echo === Test 6: tasks/list with combined filters ===
 echo Should filter by status=completed AND skill=sentiment-analysis
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"completed\",\"skill\":\"sentiment-analysis\"},\"id\":\"test-6\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"completed\",\"skill\":\"sentiment-analysis\"},\"id\":\"test-6\"}"
 echo.
 echo.
 
 echo === Test 7: Error handling - Invalid page (negative) ===
 echo Should return error
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"page\":-1},\"id\":\"test-7\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"page\":-1},\"id\":\"test-7\"}"
 echo.
 echo.
 
 echo === Test 8: Error handling - Invalid limit (too large) ===
 echo Should return error (limit > 100)
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"limit\":200},\"id\":\"test-8\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"limit\":200},\"id\":\"test-8\"}"
 echo.
 echo.
 
 echo === Test 9: Empty results (non-existent status) ===
 echo Should return empty task list
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"nonexistent\"},\"id\":\"test-9\"}"
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"tasks/list\",\"params\":{\"status\":\"nonexistent\"},\"id\":\"test-9\"}"
 echo.
 echo.
 

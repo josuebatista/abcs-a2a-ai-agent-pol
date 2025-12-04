@@ -1,6 +1,7 @@
 #!/bin/bash
 # Helper script: Send message and automatically wait for result
 # Usage: ./send-and-wait.sh "Your message here"
+# Note: Using root endpoint / (legacy /rpc still supported)
 
 API_KEY="fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
 BASE_URL="https://a2a-agent-298609520814.us-central1.run.app"
@@ -19,7 +20,7 @@ echo "Message: $MESSAGE"
 echo
 
 # Send message
-RESPONSE=$(curl -s -X POST "$BASE_URL/rpc" \
+RESPONSE=$(curl -s -X POST "$BASE_URL/" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d "{

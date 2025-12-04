@@ -1,6 +1,7 @@
 @echo off
 REM Helper script: Send message and automatically wait for result
 REM Usage: send-and-wait.bat "Your message here"
+REM Note: Using root endpoint / (legacy /rpc still supported)
 
 set "API_KEY=fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
 set "BASE_URL=https://a2a-agent-298609520814.us-central1.run.app"
@@ -19,7 +20,7 @@ echo Message: %MESSAGE%
 echo.
 
 REM Send message
-curl -s -X POST "%BASE_URL%/rpc" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"%MESSAGE%\"}]}},\"id\":\"cli-test\"}" > temp_task.json
+curl -s -X POST "%BASE_URL%/" -H "Authorization: Bearer %API_KEY%" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"message\":{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"text\":\"%MESSAGE%\"}]}},\"id\":\"cli-test\"}" > temp_task.json
 
 echo Response:
 type temp_task.json

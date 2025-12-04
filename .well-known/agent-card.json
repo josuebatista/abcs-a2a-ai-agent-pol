@@ -76,7 +76,8 @@
   },
   "security": [{"bearerAuth": []}],
   "endpoints": {
-    "rpc": "/rpc",
+    "rpc": "/",
+    "rpcLegacy": "/rpc",
     "status": "/tasks/{task_id}",
     "stream": "/tasks/{task_id}/stream"
   },

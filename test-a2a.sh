@@ -1,4 +1,5 @@
 #!/bin/bash
+# Note: Using root endpoint / (legacy /rpc still supported)
 
 BASE_URL="https://a2a-agent-298609520814.us-central1.run.app"
 
@@ -10,12 +11,12 @@ test_method() {
     local params=$2
     local task_id=$3
     local description=$4
-    
+
     echo ""
     echo "📝 Testing: $description"
-    
+
     # Submit task
-    response=$(curl -s -X POST "$BASE_URL/rpc" \
+    response=$(curl -s -X POST "$BASE_URL/" \
         -H "Content-Type: application/json" \
         -d "{\"method\": \"$method\", \"params\": $params, \"id\": \"$task_id\"}")
     

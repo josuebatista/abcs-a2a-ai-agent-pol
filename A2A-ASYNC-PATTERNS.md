@@ -81,7 +81,7 @@ Client --[tasks/get]------> Agent
 
 **Request**:
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -130,7 +130,7 @@ sleep 5
 
 **Request**:
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -185,7 +185,7 @@ curl https://a2a-agent-298609520814.us-central1.run.app/tasks/abc123-def456-ghi7
 ```javascript
 async function submitAndWait(message) {
   // Step 1: Submit task
-  const submitResponse = await fetch('https://a2a-agent-298609520814.us-central1.run.app/rpc', {
+  const submitResponse = await fetch('https://a2a-agent-298609520814.us-central1.run.app/', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=',
@@ -290,7 +290,7 @@ print(result["summary"])
 ### Step 1: Submit Task (Same as Pattern 1)
 
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -412,7 +412,7 @@ stream_task('xyz789-abc123')
 
 ```bash
 # Task 1: Summarization
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -428,7 +428,7 @@ curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
   }'
 
 # Task 2: Sentiment Analysis
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -444,7 +444,7 @@ curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
   }'
 
 # Task 3: Entity Extraction
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -470,7 +470,7 @@ sleep 5
 
 **Request** (Get all tasks):
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -526,7 +526,7 @@ curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
 
 **Request**:
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
@@ -543,7 +543,7 @@ curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
 
 **Request** (Get only summarization tasks):
 ```bash
-curl -X POST https://a2a-agent-298609520814.us-central1.run.app/rpc \
+curl -X POST https://a2a-agent-298609520814.us-central1.run.app/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{
