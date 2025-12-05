@@ -1,20 +1,22 @@
 # A2A AI Agent Proof-of-Life for Google Cloud Platform
 
-**✅ Phase 2.1 Complete - 90% A2A Protocol v0.3.0 Compliant - Production Ready**
+**✅ Phase 2.3 Complete - 95% A2A Protocol v0.3.0 Compliant - ServiceNow Ready**
 
 Agent2Agent Protocol compliant AI agent for Google Cloud Platform, designed to be discoverable and orchestrated by primary agents like ServiceNow.
 
-🎉 **NEW in v0.10.0**: `tasks/list` method with pagination and filtering!
+🎉 **NEW in v0.10.3**: API Key-Based Synchronous Mode for ServiceNow compatibility!
 
 ## Overview
 
-This production-ready implementation achieves 90% compliance with A2A Protocol v0.3.0:
-- **📋 tasks/list Method**: Paginated task listing with status/skill filters (NEW!)
+This production-ready implementation achieves 95% compliance with A2A Protocol v0.3.0:
+- **🔄 Sync Mode Support** (NEW v0.10.3): Per-API-key sync/async configuration for ServiceNow
+- **🌐 Root Endpoint** (NEW v0.10.2): Primary endpoint at `/` (legacy `/rpc` supported)
+- **📋 tasks/list Method**: Paginated task listing with status/skill filters
 - **✨ message/send Method**: Natural language interface
 - **🧠 Intent Detection**: Automatically routes to appropriate skills
 - **📦 Message/Part Structure**: Full A2A data models
 - **3 AI Capabilities**: Text summarization, sentiment analysis, and data extraction
-- **🔐 Bearer Token Authentication**: Multi-key authentication with expiry support
+- **🔐 Bearer Token Authentication**: Multi-key with expiry, mode, and timeout support
 - **JSON-RPC 2.0**: Standard protocol for task requests
 - **📡 Server-Sent Events**: Real-time status updates
 - **🔍 Agent Discovery**: Standard `.well-known/agent-card.json` endpoint
@@ -72,7 +74,11 @@ curl -s $SERVICE_URL/tasks/TASK_ID_HERE \
 ```
 
 **📚 Documentation**:
-- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete guide to async patterns (NEW!)
+- **[IMPLEMENTATION-SUMMARY.md](./IMPLEMENTATION-SUMMARY.md)** - Quick reference for v0.10.3 (NEW!)
+- **[OPTION-5-API-KEY-SYNC-MODE.md](./OPTION-5-API-KEY-SYNC-MODE.md)** - Complete sync mode guide (NEW!)
+- **[PHASE-2.3-IMPLEMENTATION.md](./PHASE-2.3-IMPLEMENTATION.md)** - Sync mode implementation details (NEW!)
+- **[PHASE-2.2-IMPLEMENTATION.md](./PHASE-2.2-IMPLEMENTATION.md)** - Root endpoint implementation
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete guide to async patterns
 - **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** - Complete testing instructions
 - **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON payload examples
 

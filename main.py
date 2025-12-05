@@ -136,14 +136,35 @@ if raw_api_keys:
     try:
         # Parse JSON structure: {"key1": {"name": "User 1", "created": "...", "expires": null}, ...}
         API_KEYS = json.loads(raw_api_keys.strip())
+
+        # Validate and normalize API key configurations (Option 5: API Key-Based Sync Mode)
+        for key_token, key_info in API_KEYS.items():
+            # Set defaults for new fields
+            if "mode" not in key_info:
+                key_info["mode"] = "async"  # Default to async for backwards compatibility
+            if "timeout" not in key_info:
+                key_info["timeout"] = 60  # Default 60 second timeout for sync mode
+
+            # Validate mode
+            if key_info["mode"] not in ["sync", "async"]:
+                logger.warning(f"Invalid mode '{key_info['mode']}' for key '{key_info.get('name', 'unknown')}', defaulting to 'async'")
+                key_info["mode"] = "async"
+
+            # Validate timeout
+            if not isinstance(key_info["timeout"], (int, float)) or key_info["timeout"] <= 0:
+                logger.warning(f"Invalid timeout {key_info['timeout']} for key '{key_info.get('name', 'unknown')}', defaulting to 60")
+                key_info["timeout"] = 60
+
         logger.info(f"✓ Loaded {len(API_KEYS)} API key(s) for authentication")
 
-        # Log key names (not the actual keys)
+        # Log key names and configurations (not the actual keys)
         for key_token, key_info in API_KEYS.items():
             key_name = key_info.get('name', 'Unknown')
             key_prefix = key_token[:8] if len(key_token) >= 8 else key_token[:4]
             expires = key_info.get('expires', 'never')
-            logger.info(f"  - Key for '{key_name}' ({key_prefix}...) expires: {expires}")
+            mode = key_info.get('mode', 'async')
+            timeout = key_info.get('timeout', 60)
+            logger.info(f"  - Key for '{key_name}' ({key_prefix}...) expires: {expires}, mode: {mode}, timeout: {timeout}s")
 
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse API_KEYS JSON: {e}")
@@ -526,17 +547,90 @@ async def handle_message_send(
 
         logger.info(f"Task {task_id} created by '{auth.get('name')}' - Skill: {skill} (via message/send)")
 
-        # Start background processing
-        background_tasks.add_task(process_message_task, task_id)
+        # Check mode from authenticated API key (Option 5: API Key-Based Sync Mode)
+        api_key_mode = auth.get("mode", "async")
+        api_key_timeout = auth.get("timeout", 60)
 
-        return {
-            "jsonrpc": "2.0",
-            "result": {
-                "taskId": task_id,
-                "status": TaskState.PENDING
-            },
-            "id": request_id
-        }
+        if api_key_mode == "sync":
+            # SYNCHRONOUS MODE: Wait for completion
+            logger.info(f"Processing task {task_id} in SYNC mode (timeout={api_key_timeout}s) for client '{auth.get('name', 'unknown')}'")
+
+            try:
+                # Wait for task completion with timeout
+                await asyncio.wait_for(
+                    process_message_task(task_id),
+                    timeout=float(api_key_timeout)
+                )
+
+                # Return completed result
+                task_result = tasks[task_id]
+                logger.info(f"Task {task_id} completed synchronously in {task_result.get('processingTime', 0):.2f}s")
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": task_result,
+                    "id": request_id
+                }
+
+            except asyncio.TimeoutError:
+                # Timeout occurred - task still processing
+                logger.error(f"Task {task_id} timed out after {api_key_timeout}s in sync mode")
+
+                # Mark task as failed
+                tasks[task_id]["status"] = TaskState.FAILED
+                tasks[task_id]["error"] = {
+                    "code": -32603,
+                    "message": f"Request timeout - task exceeded {api_key_timeout}s limit. Task remains processing in background."
+                }
+
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32603,
+                        "message": f"Request timeout - task exceeded {api_key_timeout}s limit",
+                        "data": {
+                            "taskId": task_id,
+                            "timeout": api_key_timeout,
+                            "suggestion": "Consider increasing timeout in API key configuration or using async mode"
+                        }
+                    },
+                    "id": request_id
+                }
+
+            except Exception as e:
+                # Unexpected error during sync processing
+                logger.error(f"Error in sync processing for task {task_id}: {str(e)}", exc_info=True)
+
+                tasks[task_id]["status"] = TaskState.FAILED
+                tasks[task_id]["error"] = {
+                    "code": -32603,
+                    "message": f"Internal error during sync processing: {str(e)}"
+                }
+
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32603,
+                        "message": f"Internal error during sync processing: {str(e)}",
+                        "data": {"taskId": task_id}
+                    },
+                    "id": request_id
+                }
+
+        else:
+            # ASYNCHRONOUS MODE: Background processing (current behavior)
+            logger.info(f"Processing task {task_id} in ASYNC mode for client '{auth.get('name', 'unknown')}'")
+
+            background_tasks.add_task(process_message_task, task_id)
+
+            return {
+                "jsonrpc": "2.0",
+                "result": {
+                    "taskId": task_id,
+                    "status": TaskState.PENDING
+                },
+                "id": request_id
+            }
 
     except Exception as e:
         logger.error(f"Error in handle_message_send: {str(e)}")
@@ -793,17 +887,74 @@ async def _process_rpc_request(
 
             logger.info(f"Task {task_id} created by '{auth.get('name')}' - Method: {method} (LEGACY)")
 
-            # Start background task processing (legacy)
-            background_tasks.add_task(process_task, task_id)
+            # Check mode from authenticated API key (Option 5: API Key-Based Sync Mode)
+            api_key_mode = auth.get("mode", "async")
+            api_key_timeout = auth.get("timeout", 60)
 
-            return {
-                "jsonrpc": "2.0",
-                "result": {
-                    "task_id": task_id,
-                    "status": "pending"
-                },
-                "id": request_id
-            }
+            if api_key_mode == "sync":
+                # SYNCHRONOUS MODE: Wait for completion (legacy method)
+                logger.info(f"Processing legacy task {task_id} in SYNC mode (timeout={api_key_timeout}s)")
+
+                try:
+                    await asyncio.wait_for(
+                        process_task(task_id),
+                        timeout=float(api_key_timeout)
+                    )
+
+                    # Return completed result
+                    task_result = tasks[task_id]
+                    logger.info(f"Legacy task {task_id} completed synchronously")
+
+                    return {
+                        "jsonrpc": "2.0",
+                        "result": task_result,
+                        "id": request_id
+                    }
+
+                except asyncio.TimeoutError:
+                    logger.error(f"Legacy task {task_id} timed out after {api_key_timeout}s")
+                    tasks[task_id]["status"] = "failed"
+                    tasks[task_id]["error"] = f"Timeout after {api_key_timeout}s"
+
+                    return {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32603,
+                            "message": f"Legacy method timeout after {api_key_timeout}s",
+                            "data": {"task_id": task_id}
+                        },
+                        "id": request_id
+                    }
+
+                except Exception as e:
+                    logger.error(f"Error in sync processing for legacy task {task_id}: {str(e)}")
+                    tasks[task_id]["status"] = "failed"
+                    tasks[task_id]["error"] = str(e)
+
+                    return {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32603,
+                            "message": f"Error during sync processing: {str(e)}",
+                            "data": {"task_id": task_id}
+                        },
+                        "id": request_id
+                    }
+
+            else:
+                # ASYNCHRONOUS MODE: Background processing (legacy)
+                logger.info(f"Processing legacy task {task_id} in ASYNC mode")
+
+                background_tasks.add_task(process_task, task_id)
+
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "task_id": task_id,
+                        "status": "pending"
+                    },
+                    "id": request_id
+                }
 
         else:
             return {

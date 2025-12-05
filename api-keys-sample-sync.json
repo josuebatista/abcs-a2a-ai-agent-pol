@@ -1,0 +1,24 @@
+{
+  "fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=": {
+    "name": "Test Async Client",
+    "created": "2025-12-05",
+    "expires": "2026-12-05",
+    "notes": "Default async mode for backwards compatibility"
+  },
+  "sync-test-key-12345": {
+    "name": "Test Sync Client (ServiceNow Simulation)",
+    "created": "2025-12-05",
+    "expires": "2026-12-05",
+    "notes": "Sync mode test key",
+    "mode": "sync",
+    "timeout": 60
+  },
+  "servicenow-prod-key-67890": {
+    "name": "ServiceNow Production",
+    "created": "2025-12-05",
+    "expires": "2026-12-05",
+    "notes": "ServiceNow A2A integration - sync mode required",
+    "mode": "sync",
+    "timeout": 60
+  }
+}

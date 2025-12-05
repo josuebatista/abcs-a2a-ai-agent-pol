@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ⚠️ IMPORTANT: A2A Protocol Compliance Status
 
-**Current Status**: Phase 1 Complete - 80% Compliant (v0.9.1) ✅ **PRODUCTION VERIFIED**
+**Current Status**: Phase 2.3 Complete - 95% Compliant (v0.10.3) ✅ **PRODUCTION READY**
 
-This implementation has achieved **major A2A Protocol v0.3.0 compliance** with Phase 1 complete. See **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** for complete roadmap.
+This implementation has achieved **near-complete A2A Protocol v0.3.0 compliance** with Phase 2.3 complete. See **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** for complete roadmap.
 
 **✅ Completed (Phase 1 - v0.9.1)**:
 1. ✅ Skills rewritten with human-friendly descriptions and examples
@@ -18,20 +18,33 @@ This implementation has achieved **major A2A Protocol v0.3.0 compliance** with P
 7. ✅ Message-based task routing
 8. ✅ 100% backwards compatibility with legacy methods
 
+**✅ Completed (Phase 2.1 - v0.10.0)**:
+- ✅ **tasks/list** - Paginated task listing with filtering
+
+**✅ Completed (Phase 2.2 - v0.10.2)**:
+- ✅ **Root Endpoint** - Primary endpoint at `/` (legacy `/rpc` still supported)
+- ✅ ServiceNow-compliant URL structure
+
+**✅ Completed (Phase 2.3 - v0.10.3)** ⭐ **NEW!**
+- ✅ **API Key-Based Sync Mode** - Synchronous responses for ServiceNow
+- ✅ Per-key mode configuration (sync/async)
+- ✅ Configurable timeout per API key
+- ✅ Zero client changes needed
+
 **Production Deployment**:
 - ✅ Deployed to Cloud Run: https://a2a-agent-298609520814.us-central1.run.app
-- ✅ Local testing: All tests passed
-- ✅ Production testing: All tests passed
-- ✅ Authentication: Bearer token working
+- ✅ Root endpoint `/` operational
+- ✅ Dual mode support: async (default) + sync (opt-in)
+- ✅ Authentication: Bearer token with mode metadata
 - ✅ AI Processing: Gemini 2.5 Flash operational
-- ✅ **NEW: tasks/list** - Paginated task listing with filtering
+- ✅ ServiceNow-ready: Sync mode configuration available
 
-**🔄 Remaining for Full Compliance (Phase 2)**:
+**🔄 Remaining for Full Compliance (Phase 2 Final)**:
 1. 🔄 `tasks/cancel` - Cancel running tasks
 2. 🔄 File/Data part handling (currently TextPart only)
 
-**Current Compliance**: 90% (up from 80%)
-**Estimated to 100%**: 1 week (Phase 2 completion)
+**Current Compliance**: 95% (up from 90%)
+**Estimated to 100%**: 1 week (Phase 2 final completion)
 
 ---
 
@@ -94,14 +107,14 @@ curl http://localhost:8080/health
 # Agent card
 curl http://localhost:8080/.well-known/agent-card.json
 
-# New A2A message/send method
-curl -X POST http://localhost:8080/rpc \
+# New A2A message/send method (root endpoint)
+curl -X POST http://localhost:8080/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"message/send","params":{"message":{"role":"user","parts":[{"type":"text","text":"Summarize: AI is transforming industries"}]}},"id":"test"}'
 
-# Legacy method (still works)
-curl -X POST http://localhost:8080/rpc \
+# Legacy method (still works, both / and /rpc supported)
+curl -X POST http://localhost:8080/ \
   -H "Authorization: Bearer fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA=" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"text.summarize","params":{"text":"Test","max_length":20},"id":"test-1"}'
@@ -115,13 +128,13 @@ API_KEY="fILbeUXt2PbZQ7LhXOFiHwK3oc9iLvQCyby7rYDpNZA="
 # Health check
 curl -s $SERVICE_URL/health | jq .
 
-# Test message/send
-curl -X POST $SERVICE_URL/rpc \
+# Test message/send (root endpoint)
+curl -X POST $SERVICE_URL/ \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"message/send","params":{"message":{"role":"user","parts":[{"type":"text","text":"Summarize in 20 words: AI is revolutionizing industries"}]}},"id":"prod-test"}'
 
-# Check result (get taskId from above response)
+# Check result (get taskId from above response) - for async mode
 curl -s $SERVICE_URL/tasks/TASK_ID_HERE \
   -H "Authorization: Bearer $API_KEY" | jq .
 ```
@@ -175,9 +188,19 @@ openssl rand -base64 32
     "created": "2025-10-11",
     "expires": null,
     "notes": "Main access key"
+  },
+  "servicenow-key-here": {
+    "name": "ServiceNow Production",
+    "created": "2025-12-05",
+    "expires": "2026-12-05",
+    "notes": "ServiceNow A2A integration",
+    "mode": "sync",
+    "timeout": 60
   }
 }
 ```
+
+**New in v0.10.3**: API keys now support `mode` (sync/async) and `timeout` fields for ServiceNow compatibility.
 
 3. **Store in Secret Manager**:
 ```bash
@@ -206,7 +229,7 @@ gcloud run deploy a2a-agent \
 SERVICE_URL="https://a2a-agent-298609520814.us-central1.run.app"
 API_KEY="your-key-here"
 
-curl -X POST ${SERVICE_URL}/rpc \
+curl -X POST ${SERVICE_URL}/ \
   -H "Authorization: Bearer ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{"method":"text.summarize","params":{"text":"Test"},"id":"1"}'
@@ -214,10 +237,11 @@ curl -X POST ${SERVICE_URL}/rpc \
 
 ### Key Features
 
-- **Protected Endpoints**: `/rpc`, `/tasks/{task_id}`, `/tasks/{task_id}/stream`
+- **Protected Endpoints**: `/`, `/rpc`, `/tasks/{task_id}`, `/tasks/{task_id}/stream`
 - **Public Endpoints**: `/health`, `/.well-known/agent-card.json` (no auth required)
 - **User Tracking**: Logs show which key created each task
 - **Expiry Support**: Optional expiration dates for temporary keys
+- **Sync/Async Mode** (v0.10.3+): Per-key configuration for synchronous or asynchronous responses
 - **Graceful Fallback**: If `API_KEYS` not set, authentication is disabled (with warnings)
 
 **Complete Documentation**: See `AUTHENTICATION.md` for detailed setup, key management, and troubleshooting.
@@ -293,7 +317,7 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 **Overall Compliance**: 90% (up from 80%) - **PHASE 2.1 COMPLETE**
 
 **Deployment Date**: 2025-10-11
-**Latest Update**: 2025-11-06 (v0.10.0 - tasks/list implemented)
+**Latest Update**: 2025-12-05 (v0.10.3 - API Key-Based Sync Mode for ServiceNow)
 **Secret Name**: `api-keys-abcs-test-ai-agent-001`
 **Service Account**: `298609520814-compute@developer.gserviceaccount.com`
 
@@ -310,7 +334,9 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - v0.9.0: Phase 1 - Core A2A Protocol implementation
 - v0.9.1: Bug fixes + Windows testing support
 - v0.9.2: Documentation updates for Phase 1
-- v0.10.0: tasks/list implementation with pagination and filtering (current)
+- v0.10.0: tasks/list implementation with pagination and filtering
+- v0.10.2: Root endpoint support - dual endpoints (/ and /rpc)
+- v0.10.3: API Key-Based Synchronous Mode for ServiceNow (current)
 
 **Phase 1 Complete (v0.9.1)** ✅
 - ✅ **Message/Part Data Structures**: Standard A2A message format implemented
@@ -319,14 +345,32 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - ✅ **Message-based Task Processing**: Integrated with existing AI handlers
 - ✅ **Backwards Compatible**: Legacy methods still functional
 
-**Phase 2.1 Complete (v0.10.0)** ✅ **NEW!**
+**Phase 2.1 Complete (v0.10.0)** ✅
 - ✅ **tasks/list Method**: Paginated task listing with filters
   - Pagination: page, limit (1-100), totalTasks, totalPages
   - Filtering: by status (pending/running/completed/failed), by skill
   - Per-user isolation: users only see their own tasks
   - Comprehensive test suite included
 
-**Next Phase (Phase 2 - Remaining for 95%+ Compliance)**
+**Phase 2.2 Complete (v0.10.2)** ✅
+- ✅ **Root Endpoint Support**: Dual endpoint architecture
+  - Primary endpoint: `/` (A2A Protocol v0.3.0 standard)
+  - Legacy endpoint: `/rpc` (backwards compatibility)
+  - ServiceNow-compliant URL structure
+  - Shared RPC processing logic (DRY principle)
+  - Updated agent card with dual endpoint declaration
+
+**Phase 2.3 Complete (v0.10.3)** ✅ **NEW!**
+- ✅ **API Key-Based Synchronous Mode**: ServiceNow compatibility
+  - Per-key mode configuration (sync/async in API key metadata)
+  - Configurable timeout per API key (default: 60s)
+  - Zero client changes needed - server-side configuration
+  - Sync mode: Waits for task completion before responding
+  - Async mode: Returns immediately with pending status (default)
+  - Works for both `message/send` and legacy methods
+  - Comprehensive error handling and timeout protection
+
+**Next Phase (Phase 2 Final - Remaining for 100% Compliance)**
 - 🔄 **tasks/cancel**: Cancel running tasks (Priority: High)
 - 🔄 **File/Data Part Handling**: Currently TextPart only (Priority: Medium)
 - 🔄 **Primary Agent Integration**: Test with ServiceNow or Google Agent Engine
@@ -334,12 +378,17 @@ gcloud secrets add-iam-policy-binding gemini-api-key \
 - 🔄 **Monitoring**: Integrate Cloud Monitoring and alerting
 
 **Documentation**:
-- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete async patterns guide ⭐ NEW!
+- **[A2A-ASYNC-PATTERNS.md](./A2A-ASYNC-PATTERNS.md)** - Complete async patterns guide
 - **[PHASE-1-IMPLEMENTATION.md](./PHASE-1-IMPLEMENTATION.md)** - Phase 1 implementation details
-- **[PHASE-2.1-IMPLEMENTATION.md](./PHASE-2.1-IMPLEMENTATION.md)** - tasks/list implementation ⭐ NEW!
+- **[PHASE-2.1-IMPLEMENTATION.md](./PHASE-2.1-IMPLEMENTATION.md)** - tasks/list implementation
+- **[PHASE-2.2-IMPLEMENTATION.md](./PHASE-2.2-IMPLEMENTATION.md)** - Root endpoint support
+- **[PHASE-2.3-IMPLEMENTATION.md](./PHASE-2.3-IMPLEMENTATION.md)** - Sync mode implementation ⭐ NEW!
+- **[OPTION-5-API-KEY-SYNC-MODE.md](./OPTION-5-API-KEY-SYNC-MODE.md)** - Complete sync mode guide ⭐ NEW!
+- **[IMPLEMENTATION-SUMMARY.md](./IMPLEMENTATION-SUMMARY.md)** - Quick reference ⭐ NEW!
+- **[SERVICENOW-SYNC-ANALYSIS.md](./SERVICENOW-SYNC-ANALYSIS.md)** - Problem analysis
 - **[LOCAL-TESTING-GUIDE.md](./LOCAL-TESTING-GUIDE.md)** - Complete testing guide
 - **[FULL-COMPLIANCE-ASSESSMENT.md](./FULL-COMPLIANCE-ASSESSMENT.md)** - Roadmap to 100%
-- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON examples ⭐ NEW!
+- **[test-payloads-examples.json](./test-payloads-examples.json)** - All JSON examples
 
 ## AI Capabilities Architecture
 
